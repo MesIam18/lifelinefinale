@@ -5,6 +5,21 @@ require_once __DIR__ . '/bootstrap.php';
 $pdo    = db();
 $action = $_GET['action'] ?? '';
 
+function set_responder_duty(PDO $pdo, string $studentId, string $role, string $status): void
+{
+    if (!in_array($role, ['member', 'officer', 'admin'], true)) {
+        return;
+    }
+    $squadId = $pdo->query('SELECT id FROM squads ORDER BY id ASC LIMIT 1')->fetchColumn() ?: 1;
+    $zoneId  = $pdo->query('SELECT id FROM zones ORDER BY id ASC LIMIT 1')->fetchColumn() ?: 1;
+
+    $pdo->prepare(
+        "INSERT INTO cpr_members (student_id, squad_id, zone_id, duty_status, joined_at)
+         VALUES (?, ?, ?, ?, NOW())
+         ON DUPLICATE KEY UPDATE duty_status = VALUES(duty_status)"
+    )->execute([$studentId, $squadId, $zoneId, $status]);
+}
+
 function sync_from_cpr_import(PDO $pdo, string $studentId): ?array
 {
     try {
@@ -42,7 +57,7 @@ function sync_from_cpr_import(PDO $pdo, string $studentId): ?array
 
         $pdo->prepare(
             "INSERT IGNORE INTO cpr_members (student_id, squad_id, zone_id, duty_status, joined_at)
-             VALUES (?, ?, ?, 'On Duty', NOW())"
+             VALUES (?, ?, ?, 'Off Duty', NOW())"
         )->execute([$imp['student_id'], $squadId, $zoneId]);
 
         $u = $pdo->prepare('SELECT student_id, full_name, role, password_hash, is_active FROM users WHERE student_id = ?');
@@ -105,6 +120,9 @@ switch ($action) {
 
         session_regenerate_id(true);
         $_SESSION['sid'] = $row['student_id'];
+
+        // Automatically set CPR members & officers to On Duty upon login
+        set_responder_duty($pdo, $row['student_id'], (string)$row['role'], 'On Duty');
 
         $u = load_user($row['student_id']);
         out([
@@ -270,6 +288,12 @@ switch ($action) {
     }
 
     case 'logout': {
+        $u = current_user();
+        if ($u) {
+            // Automatically set CPR members & officers to Off Duty upon logout
+            set_responder_duty($pdo, (string)$u['student_id'], (string)$u['role'], 'Off Duty');
+        }
+
         $_SESSION = [];
         if (ini_get('session.use_cookies')) {
             $params = session_get_cookie_params();

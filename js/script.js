@@ -1184,42 +1184,40 @@ function renderCPRRoster() {
 
     if (tbody && isOfficer()) {
         tbody.innerHTML = roster.map(m => {
-            const isMemberRow = m.role === "member";
             let statusColor = "available";
             if (m.status === "Responding" || m.status === "On-Scene") statusColor = "busy";
             if (m.status === "Off Duty") statusColor = "status-dot";
             const options = state.meta.squads.map(s =>
                 `<option value="${s.id}" ${s.id === m.squadId ? "selected" : ""}>${esc(s.name)}</option>`).join("");
-            const dutyCell = isMemberRow
-                ? `<span class="${statusColor}">● ${esc(m.status)}</span>`
-                : `<span class="handled-note">CPR Officer (Command)</span>`;
-            const actionCell = isMemberRow
-                ? `<button class="secondary-button btn-xs" onclick="toggleMedicDuty('${esc(m.studentId)}')">Toggle Duty</button>`
-                : `<span class="muted-id">Dispatcher</span>`;
+            const roleTag = (m.role === "officer" || m.role === "admin") ? " <small class=\"muted-id\">(Officer)</small>" : "";
             return `
             <tr>
-                <td><strong>${esc(m.name)}</strong>${m.activated === false ? ' <small class="muted-id">(not activated)</small>' : ""}</td>
+                <td><strong>${esc(m.name)}</strong>${roleTag}${m.activated === false ? ' <small class="muted-id">(not activated)</small>' : ""}</td>
                 <td><code>${esc(m.studentId)}</code></td>
                 <td><select class="roster-select" onchange="updateMedicSquad('${esc(m.studentId)}', this.value)">${options}</select></td>
                 <td>${esc(m.zone)}</td>
-                <td>${dutyCell}</td>
-                <td>${actionCell}</td>
+                <td><span class="${statusColor}">● ${esc(m.status)}</span></td>
+                <td><button class="secondary-button btn-xs" onclick="toggleMedicDuty('${esc(m.studentId)}')">Toggle Duty</button></td>
             </tr>`;
         }).join("");
     }
 
-    const activeMedics = roster.filter(m => m.role === "member" && ["On Duty", "Responding", "On-Scene"].includes(m.status));
+    const activeMedics = roster.filter(m =>
+        ["member", "officer", "admin"].includes(m.role) &&
+        ["On Duty", "Responding", "On-Scene"].includes(m.status)
+    );
     const medicsHtml = activeMedics.length === 0
-        ? `<p class="empty-note">No CPR medics are on duty right now.</p>`
+        ? `<p class="empty-note">No CPR responders are on duty right now.</p>`
         : activeMedics.map(m => {
             const initials = (m.name || "?").split(" ").filter(Boolean).map(n => n[0]).join("").substring(0, 2).toUpperCase();
             const badge = (m.status === "Responding" || m.status === "On-Scene") ? "busy" : "available";
+            const title = (m.role === "officer" || m.role === "admin") ? "CPR Officer" : "CPR Medic";
             return `
             <div class="responder">
                 <div class="responder-avatar">${esc(initials)}</div>
                 <div class="responder-details">
                     <strong>${esc(m.name)} ${m.isSelf ? '<small class="self-tag">(You)</small>' : ""}</strong>
-                    <span>CPR Medic • ${esc(m.squadName)}</span>
+                    <span>${title} • ${esc(m.squadName)}</span>
                 </div>
                 <span class="${badge}">● ${esc(m.status)}</span>
             </div>`;

@@ -13,7 +13,7 @@ switch ($action) {
             "SELECT u.student_id, u.full_name, u.role, u.password_hash,
                     m.squad_id, COALESCE(s.name, 'Alpha Team') AS squad_name,
                     COALESCE(z.name, 'Main Campus') AS zone_name,
-                    COALESCE(m.duty_status, 'On Duty') AS duty_status
+                    COALESCE(m.duty_status, 'Off Duty') AS duty_status
              FROM users u
              LEFT JOIN cpr_members m ON m.student_id = u.student_id
              LEFT JOIN squads s ON s.id = m.squad_id
@@ -65,7 +65,7 @@ switch ($action) {
         if ($cur === false) {
             $squadId = $pdo->query('SELECT id FROM squads ORDER BY id ASC LIMIT 1')->fetchColumn() ?: 1;
             $zoneId  = $pdo->query('SELECT id FROM zones ORDER BY id ASC LIMIT 1')->fetchColumn() ?: 1;
-            $next    = 'Off Duty';
+            $next    = 'On Duty';
             $pdo->prepare(
                 "INSERT INTO cpr_members (student_id, squad_id, zone_id, duty_status, joined_at)
                  VALUES (?, ?, ?, ?, NOW())"
@@ -130,7 +130,7 @@ switch ($action) {
 
         $pdo->prepare(
             "INSERT INTO cpr_members (student_id, squad_id, zone_id, duty_status, joined_at)
-             VALUES (?, ?, ?, 'On Duty', NOW())
+             VALUES (?, ?, ?, 'Off Duty', NOW())
              ON DUPLICATE KEY UPDATE squad_id = VALUES(squad_id), zone_id = VALUES(zone_id)"
         )->execute([$studentId, $squadId, $zoneId]);
 
