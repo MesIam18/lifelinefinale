@@ -50,7 +50,7 @@ const CONDITIONS_BY_PRIORITY = {
         "Stomach Ache / Nausea",
         "Minor Bruise / Contusion"
     ]
-};
+};  
 
 const state = {
     user: null,
@@ -747,11 +747,21 @@ async function verifyOTP() {
 /* =====================================================================
    ROLE DASHBOARD & MEDIC ON DUTY (MEMBERS ONLY)
    ===================================================================== */
+let adminPreviewRole = null; // null = default admin/officer view
+
+function setAdminPreviewRole(previewRole) {
+    adminPreviewRole = previewRole;
+    renderRoleDashboard();
+    toast(`Switched presentation view to: ${previewRole.toUpperCase()}`, "info");
+}
+
 function renderRoleDashboard() {
     const u = state.user;
     if (!u) return;
 
-    const r = u.role;
+    const actualRole = u.role;
+    const r = (actualRole === "admin" && adminPreviewRole) ? adminPreviewRole : actualRole;
+
     const studentView = document.getElementById("studentDashboardView");
     const medicView = document.getElementById("medicDashboardView");
     const officerView = document.getElementById("officerDashboardView");
@@ -761,19 +771,27 @@ function renderRoleDashboard() {
     const roleHeaderAction = document.getElementById("roleHeaderAction");
     const navDashText = document.getElementById("navDashText");
 
+    const switcherHtml = actualRole === "admin" ? `
+        <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+            <span style="font-size:11px; font-weight:700; color:#64748b;">DEV VIEW:</span>
+            <button type="button" class="secondary-button btn-xs" onclick="setAdminPreviewRole('admin')">👑 Officer/Admin</button>
+            <button type="button" class="secondary-button btn-xs" onclick="setAdminPreviewRole('member')">🩺 Medic</button>
+            <button type="button" class="secondary-button btn-xs" onclick="setAdminPreviewRole('student')">🎓 Student</button>
+        </div>` : "";
+
     if (r === "officer" || r === "admin") {
         if (studentView) studentView.style.display = "none";
         if (medicView) medicView.style.display = "none";
         if (officerView) officerView.style.display = "block";
 
         if (roleHeaderBadge) {
-            roleHeaderBadge.textContent = "DISPATCH CONTROL CENTER";
+            roleHeaderBadge.textContent = actualRole === "admin" ? "ADMIN / DEV COMMAND CENTER" : "DISPATCH CONTROL CENTER";
             roleHeaderBadge.style.background = "#dbeafe";
             roleHeaderBadge.style.color = "#1e40af";
         }
         if (roleHeaderTitle) roleHeaderTitle.textContent = "CPR Officer & Dispatch Command";
-        if (navDashText) navDashText.textContent = "Officers Panel";
-        if (roleHeaderAction) roleHeaderAction.innerHTML = `<button class="primary-button btn-sm" onclick="showSection('roster')">🛡️ Manage Roster</button>`;
+        if (navDashText) navDashText.textContent = actualRole === "admin" ? "Admin Console" : "Officers Panel";
+        if (roleHeaderAction) roleHeaderAction.innerHTML = switcherHtml || `<button class="primary-button btn-sm" onclick="showSection('roster')">🛡️ Manage Roster</button>`;
 
     } else if (r === "member") {
         if (studentView) studentView.style.display = "none";
@@ -787,7 +805,7 @@ function renderRoleDashboard() {
         }
         if (roleHeaderTitle) roleHeaderTitle.textContent = "Active Responder Dispatch Queue";
         if (navDashText) navDashText.textContent = "Responder Hub";
-        if (roleHeaderAction) roleHeaderAction.innerHTML = `<button class="primary-button btn-sm" onclick="showSection('emergency')">🚨 Send Alert</button>`;
+        if (roleHeaderAction) roleHeaderAction.innerHTML = switcherHtml || `<button class="primary-button btn-sm" onclick="showSection('emergency')">🚨 Send Alert</button>`;
 
         const duty = u.dutyStatus || "On Duty";
         const isOff = duty === "Off Duty";
@@ -810,7 +828,7 @@ function renderRoleDashboard() {
         }
         if (roleHeaderTitle) roleHeaderTitle.textContent = "Student Safety & Emergency Assistance";
         if (navDashText) navDashText.textContent = "Student Hub";
-        if (roleHeaderAction) roleHeaderAction.innerHTML = `<button class="primary-button btn-sm" onclick="showSection('emergency')">🚨 Request Help</button>`;
+        if (roleHeaderAction) roleHeaderAction.innerHTML = switcherHtml || `<button class="primary-button btn-sm" onclick="showSection('emergency')">🚨 Request Help</button>`;
     }
 }
 
