@@ -1,10 +1,12 @@
 <?php
+$env = fn(string $k, mixed $default = null) => $_ENV[$k] ?? $_SERVER[$k] ?? (getenv($k) !== false ? getenv($k) : $default);
+
 return [
-    'db_host'    => getenv('MYSQLHOST') ?: '127.0.0.1',
-    'db_port'    => (int)(getenv('MYSQLPORT') ?: 3306),
-    'db_name'    => getenv('MYSQLDATABASE') ?: 'lifeline',
-    'db_user'    => getenv('MYSQLUSER') ?: 'lifeline_app',
-    'db_pass'    => getenv('MYSQLPASSWORD') ?: 'ChangeThisPassword!',
+    'db_host'    => $env('MYSQLHOST', '127.0.0.1'),
+    'db_port'    => (int)$env('MYSQLPORT', 3306),
+    'db_name'    => $env('MYSQLDATABASE', 'lifeline'),
+    'db_user'    => $env('MYSQLUSER', 'lifeline_app'),
+    'db_pass'    => $env('MYSQLPASSWORD', 'ChangeThisPassword!'),
     'db_charset' => 'utf8mb4',
 
     'timezone_offset' => '+08:00',
