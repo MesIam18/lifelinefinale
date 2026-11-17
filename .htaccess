@@ -1,0 +1,11 @@
+Options -Indexes
+RewriteEngine On
+
+# Allow standard HTTP methods for PHP backend endpoints
+<Limit GET POST PUT DELETE>
+    Allow from all
+</Limit>
+
+# Route requests correctly if needed
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
