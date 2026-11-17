@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lifeline | Universidad de Dagupan Emergency Dispatch</title>
+    <link rel="stylesheet" href="css/style.css?v=5">
+</head>
+<body class="auth-body">
+
+    <div class="auth-wrapper">
+        <div class="auth-card">
+            <div class="auth-brand">
+                <div class="brand-badge">+</div>
+                <div>
+                    <span class="auth-kicker">UNIVERSIDAD DE DAGUPAN</span>
+                    <h1>Lifeline</h1>
+                    <p>Campus Primary Responders &amp; Emergency Dispatch</p>
+                </div>
+            </div>
+
+            <div class="auth-tabs">
+                <button type="button" id="loginTabBtn" class="auth-tab active" onclick="switchAuthTab('login')">Sign In</button>
+                <button type="button" id="registerTabBtn" class="auth-tab" onclick="switchAuthTab('register')">Create Account</button>
+            </div>
+
+            <!-- SIGN IN FORM -->
+            <div id="loginFormContainer">
+                <form id="loginForm" class="auth-form">
+                    <div class="form-group">
+                        <label for="studentId">Student ID Number</label>
+                        <input type="text" id="studentId" placeholder="23-1234-567" maxlength="11" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" placeholder="Enter your password" required>
+                    </div>
+
+                    <button type="submit" class="primary-button full-btn">Sign In</button>
+                </form>
+
+                <div class="auth-divider"><span>OR</span></div>
+
+                <a href="dashboard.html" class="dispatch-button full-btn" style="display:block; text-align:center; text-decoration:none;">
+                    🚨 Guest Emergency Dispatch (No Login)
+                </a>
+                <p class="auth-hint" style="margin-top:10px; text-align:center; font-size:12px; color:#64748b;">
+                    CPR Members &amp; Officers: Sign in with your Student ID and default password <strong>CPR123</strong>.
+                </p>
+            </div>
+
+            <!-- STUDENT REGISTRATION FORM (USER ROLE ONLY) -->
+            <div id="registerFormContainer" style="display:none;">
+                <form id="registerForm" class="auth-form">
+                    <div class="form-group">
+                        <label for="regFullName">Full Name</label>
+                        <input type="text" id="regFullName" placeholder="Surname, First Name Middle Name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="regStudentId">Student ID Number</label>
+                        <div style="display:flex; gap:8px;">
+                            <input type="text" id="regStudentId" placeholder="23-1234-567" maxlength="11" required style="flex:1;">
+                            <button type="button" id="sendOtpBtn" class="secondary-button" onclick="requestOTP()">Send OTP</button>
+                        </div>
+                    </div>
+
+                    <div id="otpSection" class="form-group" style="display:none; background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #e2e8f0;">
+                        <label for="regOtpCode">6-Digit OTP Verification Code</label>
+                        <div style="display:flex; gap:8px;">
+                            <input type="text" id="regOtpCode" placeholder="000000" maxlength="6" style="flex:1;">
+                            <button type="button" id="verifyOtpBtn" class="primary-button" onclick="verifyOTP()">Verify</button>
+                        </div>
+                        <p id="otpStatusMsg" style="display:none; color:#059669; font-size:12px; font-weight:600; margin-top:6px;">
+                            ✓ Student ID verified
+                        </p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="regCourse">Course / Department</label>
+                        <input type="text" id="regCourse" placeholder="e.g. BS Information Technology" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="regPassword">Password</label>
+                        <input type="password" id="regPassword" minlength="6" placeholder="At least 6 characters" required>
+                    </div>
+
+                    <button type="submit" id="regSubmitBtn" class="primary-button full-btn" disabled style="opacity:0.5; cursor:not-allowed;">
+                        Create Account
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/script.js?v=5"></script>
+</body>
+</html>

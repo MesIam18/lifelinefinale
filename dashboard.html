@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lifeline | Emergency Alert &amp; Dispatch Hub</title>
+    <link rel="stylesheet" href="css/style.css?v=5">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <div class="app-layout">
+
+        <!-- SIDEBAR -->
+        <aside class="sidebar" id="appSidebar">
+            <div class="sidebar-header">
+                <div class="brand-logo">
+                    <span class="brand-icon">+</span>
+                    <span class="brand-text">Lifeline</span>
+                </div>
+                <button type="button" class="collapse-btn" onclick="toggleSidebarCollapse()" title="Collapse sidebar">«</button>
+            </div>
+
+            <nav class="sidebar-nav">
+                <button type="button" class="nav-item" data-section="dashboard" onclick="showSection('dashboard')">
+                    <span class="nav-icon">🏠</span>
+                    <span class="nav-label" id="navDashText">Dashboard</span>
+                </button>
+
+                <button type="button" class="nav-item active" data-section="emergency" onclick="showSection('emergency')">
+                    <span class="nav-icon">🚨</span>
+                    <span class="nav-label">Emergency Alert</span>
+                </button>
+
+                <button type="button" class="nav-item" id="cprRosterNavBtn" data-section="roster" onclick="showSection('roster')" style="display:none;">
+                    <span class="nav-icon">🛡️</span>
+                    <span class="nav-label">CPR Roster</span>
+                </button>
+
+                <button type="button" class="nav-item" data-section="announcements" onclick="showSection('announcements')">
+                    <span class="nav-icon">📢</span>
+                    <span class="nav-label">Announcements</span>
+                </button>
+
+                <button type="button" class="nav-item" data-section="training" onclick="showSection('training')">
+                    <span class="nav-icon">🎓</span>
+                    <span class="nav-label">Training &amp; Seminars</span>
+                </button>
+
+                <button type="button" class="nav-item" data-section="analytics" onclick="showSection('analytics')">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-label">Patient Analytics</span>
+                </button>
+
+                <button type="button" class="nav-item" data-section="profile" onclick="showSection('profile')">
+                    <span class="nav-icon">👤</span>
+                    <span class="nav-label">Profile</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <span class="system-status"><span class="status-online-dot">●</span> System Online</span>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <div class="main-area">
+
+            <!-- TOP HEADER BAR -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button type="button" class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+                    <div>
+                        <span class="topbar-kicker">DISPATCH AND EMERGENCY RESPONSE SYSTEM FOR UNIVERSIDAD DE DAGUPAN</span>
+                        <h1 id="pageTitle">Emergency Alert &amp; Dispatch Hub</h1>
+                        <p id="pageSubtitle">Emergency dispatch is open without login. Announcements, trainings, and profile require signing in.</p>
+                    </div>
+                </div>
+
+                <div class="topbar-right">
+                    <button type="button" id="soundToggleBtn" class="sound-pill" onclick="toggleSoundAlerts()">🔊 Sound On</button>
+                    <button type="button" id="enableAlertsBtn" class="secondary-button btn-sm" onclick="enableAlerts()" style="display:none;">Enable Alerts</button>
+
+                    <div class="notif-bell" title="Active Notifications">
+                        🔔
+                        <span id="notifCount" class="notif-badge" style="display:none;">0</span>
+                    </div>
+
+                    <!-- GUEST CONTROLS -->
+                    <div id="guestTopbarControls" style="display:flex; align-items:center; gap:10px;">
+                        <span class="guest-mode-pill">Guest Emergency Mode</span>
+                        <a href="index.html" class="primary-button btn-sm" style="text-decoration:none;">🔑 Sign In / Register</a>
+                    </div>
+
+                    <!-- AUTHENTICATED USER DROPDOWN -->
+                    <div id="userProfileMenuContainer" class="user-menu-container" style="display:none;">
+                        <button type="button" class="user-menu-trigger" onclick="toggleProfileDropdown(event)">
+                            <div class="user-avatar-sm" id="headerAvatar">UD</div>
+                            <div class="user-meta-sm">
+                                <strong id="headerUserName">User</strong>
+                                <span id="headerUserRole">Student</span>
+                            </div>
+                        </button>
+
+                        <div id="profileDropdownMenu" class="profile-dropdown">
+                            <button type="button" onclick="closeProfileDropdown(); showSection('profile');">👤 My Profile</button>
+                            <button type="button" onclick="closeProfileDropdown(); openChangePassword();">🔑 Change Password</button>
+                            <button type="button" class="danger-item" onclick="logout()">🚪 Sign Out</button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- SECTION 1: DASHBOARD (ROLE-AWARE) -->
+            <section id="dashboard" class="content-section">
+                <div class="card role-banner-card" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px;">
+                    <div>
+                        <span id="roleHeaderBadge" class="role-pill">HUB</span>
+                        <h2 id="roleHeaderTitle" style="margin:6px 0 0;">Campus Safety Hub</h2>
+                    </div>
+                    <div id="roleHeaderAction"></div>
+                </div>
+
+                <!-- STUDENT / USER VIEW -->
+                <div id="studentDashboardView" style="display:none;">
+                    <div class="grid-2">
+                        <div class="card">
+                            <h3>📢 Latest Campus Announcements</h3>
+                            <div id="latestAnnouncementsList" style="margin-top:12px;"></div>
+                        </div>
+
+                        <div id="studentMyRequestsCard" class="card" style="display:none;">
+                            <h3>🚑 My Active &amp; Recent Emergency Requests</h3>
+                            <div id="studentMyRequestsList" style="margin-top:12px;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CPR MEDIC RESPONDER VIEW -->
+                <div id="medicDashboardView" style="display:none;">
+                    <div class="card" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px;">
+                        <div>
+                            <h3 id="medicDutyTitle">Medic On Duty</h3>
+                            <p id="medicSquadInfo" style="color:var(--muted); margin:4px 0 0;">Assigned: Alpha Team • Main Campus</p>
+                        </div>
+                        <button type="button" id="toggleDutyBtn" class="primary-button" onclick="toggleSelfDuty()">● Set Off Duty</button>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="card">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                                <h3>🚨 Active Dispatch Queue</h3>
+                                <span id="medicActiveAlertCount" class="priority red-priority">● 0 Active</span>
+                            </div>
+                            <div id="medicDispatchAlertsList"></div>
+                        </div>
+
+                        <div class="card">
+                            <h3>🩺 Medics On Duty</h3>
+                            <div id="medicRespondersList" style="margin-top:12px;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CPR OFFICER COMMAND VIEW -->
+                <div id="officerDashboardView" style="display:none;">
+                    <div class="stats-grid" style="margin-bottom:20px;">
+                        <div class="card stat-card">
+                            <span>Incidents Today</span>
+                            <h2 id="statTodayIncidents">0</h2>
+                            <small id="statTodayDelta">Same as yesterday</small>
+                        </div>
+                        <div class="card stat-card">
+                            <span>Active Medics</span>
+                            <h2 id="activeRespondersCount">0</h2>
+                            <small>Currently on duty</small>
+                        </div>
+                        <div class="card stat-card">
+                            <span>Avg Response Time</span>
+                            <h2 id="statAvgResponse">—</h2>
+                            <small id="statAvgNote">Last 30 days</small>
+                        </div>
+                        <div class="card stat-card">
+                            <span>Resolved Rate</span>
+                            <h2 id="statResolved">—</h2>
+                            <small id="statResolvedNote">This month</small>
+                        </div>
+                    </div>
+
+                    <div class="grid-2" style="margin-bottom:20px;">
+                        <div class="card">
+                            <h3>🚨 Live Dispatch Queue</h3>
+                            <div id="officerDispatchList" style="margin-top:12px;"></div>
+                        </div>
+
+                        <div class="card">
+                            <h3>🩺 Active CPR Responders</h3>
+                            <div id="officerRosterList" style="margin-top:12px;"></div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-bottom:20px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+                            <h3>📣 Quick Officer Publish</h3>
+                            <div style="display:flex; gap:8px;">
+                                <button type="button" id="pubTabAnnBtn" class="auth-tab active" onclick="switchOfficerPublishTab('ann')">Announcement</button>
+                                <button type="button" id="pubTabTrnBtn" class="auth-tab" onclick="switchOfficerPublishTab('trn')">Training / Seminar</button>
+                            </div>
+                        </div>
+
+                        <form id="panelAnnouncementForm" style="display:grid; gap:10px;">
+                            <input type="text" id="panelAnnTitle" placeholder="Announcement Title" required>
+                            <div class="grid-2">
+                                <select id="panelAnnIcon">
+                                    <option value="📢">📢 General Notice</option>
+                                    <option value="🚨">🚨 Safety Advisory</option>
+                                    <option value="🩺">🩺 Health &amp; Wellness</option>
+                                </select>
+                                <select id="panelAnnFeatured">
+                                    <option value="false">Standard Card</option>
+                                    <option value="true">Featured Banner (IMPORTANT)</option>
+                                </select>
+                            </div>
+                            <input type="text" id="panelAnnDate" placeholder="Date / Schedule Label (e.g. November 20, 2026)" required>
+                            <textarea id="panelAnnDetails" rows="3" placeholder="Write announcement details..." required></textarea>
+                            <button type="submit" class="primary-button">Publish Announcement</button>
+                        </form>
+
+                        <form id="panelTrainingForm" style="display:none; gap:10px;">
+                            <input type="text" id="panelTrnTitle" placeholder="Training / Seminar Title" required>
+                            <div class="grid-2">
+                                <select id="panelTrnTag">
+                                    <option value="CERTIFICATION">BLS / CPR Certification</option>
+                                    <option value="WORKSHOP">First Aid Workshop</option>
+                                    <option value="REFRESHER">Emergency Refresher</option>
+                                    <option value="SEMINAR">Disaster Response Seminar</option>
+                                </select>
+                                <input type="date" id="panelTrnDate" required>
+                            </div>
+                            <div class="grid-2">
+                                <input type="text" id="panelTrnLocation" placeholder="Venue / Room" required>
+                                <input type="number" id="panelTrnSlots" min="1" max="500" value="30" placeholder="Available Slots" required>
+                            </div>
+                            <textarea id="panelTrnDesc" rows="3" placeholder="Training description..." required></textarea>
+                            <button type="submit" class="primary-button">Publish Training Session</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- RECENT CAMPUS INCIDENTS TABLE -->
+                <div class="card">
+                    <h3>📋 Recent Campus Incidents</h3>
+                    <div class="table-wrapper" style="margin-top:12px;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Incident</th>
+                                    <th>Location</th>
+                                    <th>Priority</th>
+                                    <th>Patients</th>
+                                    <th>Status</th>
+                                    <th>Reported</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentIncidentsBody">
+                                <tr><td colspan="6" class="empty-note">Loading incidents...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 2: EMERGENCY ALERT & DISPATCH HUB -->
+            <section id="emergency" class="content-section active-section">
+                <div class="emergency-grid">
+
+                    <!-- LEFT COLUMN: DISPATCH FORM -->
+                    <div class="card">
+                        <div class="dispatch-warning-box">
+                            <strong>⚠️ Emergency Dispatch</strong>
+                            <p>Submit an alert when medical assistance is required on campus.</p>
+                        </div>
+
+                        <form id="emergencyForm" class="dispatch-form">
+                            <div class="form-group">
+                                <label>Type of Emergency</label>
+                                <div class="priority-grid">
+                                    <label class="priority-option red-option">
+                                        <input type="radio" name="priority" value="RED" required>
+                                        <div>
+                                            <strong>RED - Immediate</strong>
+                                            <span>Severe bleeding, respiratory distress, shock</span>
+                                        </div>
+                                    </label>
+
+                                    <label class="priority-option yellow-option">
+                                        <input type="radio" name="priority" value="YELLOW">
+                                        <div>
+                                            <strong>YELLOW - Delayed</strong>
+                                            <span>Bone fractures, deep wounds, moderate burns</span>
+                                        </div>
+                                    </label>
+
+                                    <label class="priority-option green-option">
+                                        <input type="radio" name="priority" value="GREEN">
+                                        <div>
+                                            <strong>GREEN - Minor</strong>
+                                            <span>Minor cuts, scrapes, sprains, bruises</span>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="incidentType">Condition / Complaint (optional)</label>
+                                <select id="incidentType">
+                                    <option value="">Not sure / Other</option>
+                                </select>
+                            </div>
+
+                            <div class="grid-2">
+                                <div class="form-group">
+                                    <label for="building">Building / Zone</label>
+                                    <select id="building" onchange="updateRoomDropdown()" required>
+                                        <option value="">Select Building</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="room">Room / Specific Location</label>
+                                    <select id="room" required>
+                                        <option value="">Select Room / Area</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group" id="guestReporterField">
+                                <label for="guestReporterName">Your Name or Student ID (optional)</label>
+                                <input type="text" id="guestReporterName" maxlength="60" placeholder="e.g. Juan Dela Cruz or 23-1234-567 (leave blank if urgent)">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="patients">Number of Patients</label>
+                                <input type="number" id="patients" value="1" min="1" max="99" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="others">Others / Additional Information</label>
+                                <textarea id="others" rows="3" maxlength="300" placeholder="Describe patient condition or specific landmarks..."></textarea>
+                            </div>
+
+                            <button type="submit" class="dispatch-button full-btn">🚨 SEND EMERGENCY ALERT</button>
+                        </form>
+                    </div>
+
+                    <!-- RIGHT COLUMN: MEDICS ON DUTY & LIVE QUEUES -->
+                    <div style="display:flex; flex-direction:column; gap:20px;">
+                        <div class="card">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <div>
+                                    <h3>Medics On Duty</h3>
+                                    <p style="font-size:12px; color:var(--muted); margin:2px 0 0;">CPR members currently available</p>
+                                </div>
+                                <span id="activeRespondersBadge" class="online-pill">0 Online</span>
+                            </div>
+
+                            <div id="dynamicRespondersList" style="margin-top:14px;"></div>
+
+                            <div style="margin-top:16px; padding-top:14px; border-top:1px solid #eef2f6;">
+                                <strong>📍 Campus Dispatch</strong>
+                                <p style="font-size:13px; color:var(--muted); margin:4px 0 0;">
+                                    Your alert will be sent to available CPR medics within Universidad de Dagupan.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- RESPONDER QUEUE (CPR MEMBERS & OFFICERS) -->
+                        <div id="responderDispatchQueue" class="card" style="display:none;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                                <h3>🚨 Incoming Emergency Calls</h3>
+                                <span id="activeAlertCount" class="priority red-priority">● 0 Active Alerts</span>
+                            </div>
+                            <div id="dispatchAlertsList"></div>
+                        </div>
+
+                        <!-- MY REQUESTS TRACKER -->
+                        <div id="myRequestsCard" class="card" style="display:none;">
+                            <h3>🚑 Your Emergency Dispatch Status</h3>
+                            <div id="myRequestsList" style="margin-top:12px;"></div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- SECTION 3: CPR ROSTER (OFFICERS ONLY) -->
+            <section id="roster" class="content-section">
+                <div class="grid-2" style="margin-bottom:20px;">
+                    <div class="card">
+                        <h3>🛡️ Response Teams Overview</h3>
+                        <div id="squadOverviewList" style="display:grid; gap:10px; margin-top:12px;"></div>
+                    </div>
+
+                    <div class="card">
+                        <h3>➕ Add CPR Member / Officer</h3>
+                        <form id="addMemberForm" style="display:grid; gap:10px; margin-top:12px;">
+                            <input type="text" id="newMemberName" placeholder="Full Name (Surname, First Name)" required>
+                            <div class="grid-2">
+                                <input type="text" id="newMemberId" placeholder="Student ID (2X-XXXX-XXX)" maxlength="11" required>
+                                <select id="newMemberRole">
+                                    <option value="member">CPR Member</option>
+                                    <option value="officer">CPR Officer</option>
+                                </select>
+                            </div>
+                            <div class="grid-2">
+                                <select id="newMemberTeam"></select>
+                                <select id="newMemberZone"></select>
+                            </div>
+                            <button type="submit" class="primary-button">Add to Roster</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>📋 Active CPR Roster &amp; Duty Assignments</h3>
+                    <div class="table-wrapper" style="margin-top:12px;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Student ID</th>
+                                    <th>Team / Squad</th>
+                                    <th>Assigned Zone</th>
+                                    <th>Duty Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cprRosterTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 4: ANNOUNCEMENTS -->
+            <section id="announcements" class="content-section">
+                <div id="officerAnnouncementCard" class="card" style="display:none; margin-bottom:20px;">
+                    <h3>📢 Post New Campus Announcement</h3>
+                    <form id="createAnnouncementForm" style="display:grid; gap:10px; margin-top:12px;">
+                        <input type="text" id="annTitle" placeholder="Announcement Title" required>
+                        <div class="grid-2">
+                            <select id="annIcon">
+                                <option value="📢">📢 General Notice</option>
+                                <option value="🚨">🚨 Safety Advisory</option>
+                                <option value="🩺">🩺 Health &amp; Wellness</option>
+                            </select>
+                            <select id="annFeatured">
+                                <option value="false">Standard Announcement</option>
+                                <option value="true">Featured Banner (IMPORTANT)</option>
+                            </select>
+                        </div>
+                        <input type="text" id="annDate" placeholder="Date Label (e.g. November 20, 2026)" required>
+                        <textarea id="annDetails" rows="3" placeholder="Announcement details..." required></textarea>
+                        <button type="submit" class="primary-button">Publish Announcement</button>
+                    </form>
+                </div>
+
+                <div id="announcementBoardGrid" class="announcements-grid"></div>
+            </section>
+
+            <!-- SECTION 5: TRAINING & SEMINARS -->
+            <section id="training" class="content-section">
+                <div id="officerTrainingCard" class="card" style="display:none; margin-bottom:20px;">
+                    <h3>🎓 Schedule New Training / Seminar</h3>
+                    <form id="createTrainingForm" style="display:grid; gap:10px; margin-top:12px;">
+                        <input type="text" id="trnTitle" placeholder="Session Title" required>
+                        <div class="grid-2">
+                            <select id="trnTag">
+                                <option value="CERTIFICATION">BLS / CPR Certification</option>
+                                <option value="WORKSHOP">First Aid Workshop</option>
+                                <option value="REFRESHER">Emergency Refresher</option>
+                                <option value="SEMINAR">Disaster Response Seminar</option>
+                            </select>
+                            <input type="date" id="trnDate" required>
+                        </div>
+                        <div class="grid-2">
+                            <input type="text" id="trnLocation" placeholder="Venue / Room" required>
+                            <input type="number" id="trnSlots" min="1" max="500" value="30" placeholder="Max Slots" required>
+                        </div>
+                        <textarea id="trnDesc" rows="3" placeholder="Session description..." required></textarea>
+                        <button type="submit" class="primary-button">Create Session</button>
+                    </form>
+                </div>
+
+                <div id="trainingGrid" class="training-grid" style="margin-bottom:20px;"></div>
+
+                <div class="card">
+                    <h3>📈 My Training Attendance</h3>
+                    <div id="attendanceList" style="margin-top:12px;"></div>
+                </div>
+            </section>
+
+            <!-- SECTION 6: PATIENT ANALYTICS -->
+            <section id="analytics" class="content-section">
+                <div class="stats-grid" style="margin-bottom:20px;">
+                    <div class="card stat-card">
+                        <span>Total Campus Cases</span>
+                        <h2 id="anTotal">0</h2>
+                        <small>All recorded alerts</small>
+                    </div>
+                    <div class="card stat-card">
+                        <span>Most Common Condition</span>
+                        <h2 id="anCommon">—</h2>
+                        <small id="anCommonNote">No data yet</small>
+                    </div>
+                    <div class="card stat-card">
+                        <span>Average Response</span>
+                        <h2 id="anResponse">—</h2>
+                        <small>Dispatch to arrival</small>
+                    </div>
+                    <div class="card stat-card">
+                        <span>Active Medics</span>
+                        <h2 id="anActive">0</h2>
+                        <small>Available responders</small>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="card">
+                        <h3>Incidents by Condition</h3>
+                        <div style="height:280px; margin-top:12px;">
+                            <canvas id="incidentChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>Monthly Emergency Trend</h3>
+                        <div style="height:280px; margin-top:12px;">
+                            <canvas id="monthlyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 7: MY PROFILE -->
+            <section id="profile" class="content-section">
+                <div class="card" style="max-width:720px;">
+                    <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px; flex-wrap:wrap;">
+                        <div class="profile-avatar-lg" id="profileAvatar">UD</div>
+                        <div>
+                            <h2 id="profileFullName" style="margin:0;">Student Name</h2>
+                            <span id="profileRoleBadge" class="role-pill" style="margin-top:6px; display:inline-block;">Student</span>
+                        </div>
+                    </div>
+
+                    <div class="profile-details-grid" style="display:grid; gap:12px; margin-bottom:20px;">
+                        <div><strong>Student ID:</strong> <span id="profileStudentId">—</span></div>
+                        <div><strong>Course / School:</strong> <span id="profileCourse">—</span></div>
+                        <div><strong>Birthdate:</strong> <span id="profileBirthdate">Not set</span></div>
+                        <div><strong>Address:</strong> <span id="profileAddress">Not set</span></div>
+                        <div><strong>Emergency Contact:</strong> <span id="profileEmergency">Not set</span></div>
+                    </div>
+
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <button type="button" class="primary-button" onclick="openProfileEdit()">✏️ Edit Profile</button>
+                        <button type="button" class="secondary-button" onclick="openChangePassword()">🔑 Change Password</button>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <!-- MODALS -->
+    <div id="alertModal" class="modal">
+        <div class="modal-content">
+            <h3>🚨 Emergency Alert Dispatched</h3>
+            <p id="alertMessage" style="margin:12px 0 18px;"></p>
+            <button type="button" class="primary-button full-btn" onclick="closeModal()">OK, Understood</button>
+        </div>
+    </div>
+
+    <div id="loginRequiredModal" class="modal">
+        <div class="modal-content">
+            <h3>🔒 Sign In Required</h3>
+            <p id="loginReqMessage" style="margin:12px 0 18px;"></p>
+            <div style="display:flex; gap:10px;">
+                <a href="index.html" class="primary-button" style="text-decoration:none; text-align:center; flex:1;">Sign In / Register</a>
+                <button type="button" class="secondary-button" onclick="closeLoginRequiredModal()">Stay in Guest Mode</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="profileEditModal" class="modal">
+        <div class="modal-content">
+            <h3>Edit Profile Information</h3>
+            <form id="profileEditForm" style="display:grid; gap:10px; margin-top:12px;">
+                <label for="editCourse">Course / Department</label>
+                <input type="text" id="editCourse" required>
+
+                <label for="editBirthdate">Birthdate</label>
+                <input type="date" id="editBirthdate">
+
+                <label for="editAddress">Home Address</label>
+                <input type="text" id="editAddress" placeholder="Barangay, City, Province">
+
+                <label for="editContact">Emergency Contact (Name &amp; Number)</label>
+                <input type="text" id="editContact" placeholder="e.g. Maria Dela Cruz - 0917-000-0000">
+
+                <div style="display:flex; gap:10px; margin-top:8px;">
+                    <button type="submit" class="primary-button">Save Changes</button>
+                    <button type="button" class="secondary-button" onclick="closeProfileEdit()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="changePasswordModal" class="modal">
+        <div class="modal-content">
+            <h3>🔑 Change Password</h3>
+            <form id="changePasswordForm" style="display:grid; gap:10px; margin-top:12px;">
+                <label for="currentPassword">Current Password</label>
+                <input type="password" id="currentPassword" placeholder="Enter current password (e.g. CPR123)" required>
+
+                <label for="newPassword">New Password</label>
+                <input type="password" id="newPassword" minlength="6" placeholder="At least 6 characters" required>
+
+                <label for="confirmNewPassword">Confirm New Password</label>
+                <input type="password" id="confirmNewPassword" minlength="6" placeholder="Re-enter new password" required>
+
+                <div style="display:flex; gap:10px; margin-top:8px;">
+                    <button type="submit" class="primary-button">Update Password</button>
+                    <button type="button" class="secondary-button" onclick="closeChangePassword()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="codeModal" class="modal">
+        <div class="modal-content">
+            <h3>CPR Member Added</h3>
+            <p id="codeModalText" style="margin:10px 0;"></p>
+            <div id="codeModalCode" style="font-size:20px; font-weight:700; letter-spacing:2px; padding:10px; background:#f1f5f9; border-radius:8px; text-align:center; margin-bottom:14px;"></div>
+            <button type="button" class="primary-button full-btn" onclick="closeCodeModal()">Done</button>
+        </div>
+    </div>
+
+    <script src="js/script.js?v=5"></script>
+</body>
+</html>

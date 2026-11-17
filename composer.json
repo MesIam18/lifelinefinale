@@ -1,0 +1,10 @@
+{
+    "name": "udd/lifeline",
+    "description": "Dispatch and Emergency Response System for Universidad de Dagupan",
+    "require": {
+        "php": "^8.2",
+        "ext-pdo": "*",
+        "ext-pdo_mysql": "*",
+        "ext-mbstring": "*"
+    }
+}
