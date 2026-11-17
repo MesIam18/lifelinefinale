@@ -213,7 +213,7 @@ function closeLoginRequiredModal() {
 }
 
 /* =====================================================================
-   CONSISTENT WEB AUDIO EMERGENCY ALARM ENGINE
+   NDRRMC-STYLE DUAL-TONE EMERGENCY BROADCAST ALARM ENGINE
    ===================================================================== */
 let audioCtx = null;
 let alarmRepeatTimer = null;
@@ -255,7 +255,7 @@ function toggleSoundAlerts() {
     if (next) {
         unlockAudio().then(() => {
             playEmergencyAlarm("GREEN");
-            toast("Emergency alert sound enabled.", "success");
+            toast("NDRRMC emergency alert sound enabled.", "success");
         });
     } else {
         stopAlarmLoop();
@@ -288,25 +288,41 @@ function updateAlertsButton() {
     }
 }
 
-function scheduleTone(ctx, type, freq, startOffset, duration, peakGain = 0.25) {
+function scheduleDualTone(ctx, freqA, freqB, startOffset, duration, peakGain = 0.28) {
     const start = ctx.currentTime + startOffset;
     const stop = start + duration;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, start);
-    gain.gain.setValueAtTime(0.001, start);
-    gain.gain.linearRampToValueAtTime(peakGain, start + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.001, stop);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(start);
-    osc.stop(stop + 0.01);
+
+    [freqA, freqB].forEach(freq => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(freq, start);
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = "bandpass";
+        filter.frequency.setValueAtTime(1100, start);
+        filter.Q.setValueAtTime(1.4, start);
+
+        gain.gain.setValueAtTime(0.001, start);
+        gain.gain.linearRampToValueAtTime(peakGain, start + 0.02);
+        gain.gain.setValueAtTime(peakGain, stop - 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, stop);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(start);
+        osc.stop(stop + 0.01);
+    });
 }
 
 async function playEmergencyAlarm(priority = "RED") {
     if (!isSoundEnabled()) return;
     try {
+        if ("vibrate" in navigator) {
+            navigator.vibrate(priority === "RED" ? [400, 150, 400, 150, 700] : [300, 150, 300]);
+        }
+
         const ctx = getAudioContext();
         if (!ctx) return;
         if (ctx.state === "suspended") {
@@ -314,20 +330,53 @@ async function playEmergencyAlarm(priority = "RED") {
         }
         if (ctx.state !== "running") return;
 
+        // Philippine NDRRMC / WEA Emergency Alert Dual-Tone (853 Hz + 960 Hz)
         if (priority === "RED") {
-            for (let i = 0; i < 6; i++) {
-                scheduleTone(ctx, "sawtooth", i % 2 === 0 ? 880 : 660, i * 0.2, 0.17, 0.24);
-            }
+            scheduleDualTone(ctx, 853, 960, 0.00, 0.55, 0.30);
+            scheduleDualTone(ctx, 853, 960, 0.68, 0.24, 0.30);
+            scheduleDualTone(ctx, 853, 960, 1.02, 0.24, 0.30);
+            scheduleDualTone(ctx, 853, 960, 1.36, 0.65, 0.32);
         } else if (priority === "YELLOW") {
-            scheduleTone(ctx, "triangle", 587.33, 0, 0.18, 0.22);
-            scheduleTone(ctx, "triangle", 783.99, 0.24, 0.18, 0.22);
+            scheduleDualTone(ctx, 853, 960, 0.00, 0.35, 0.24);
+            scheduleDualTone(ctx, 853, 960, 0.48, 0.35, 0.24);
+            scheduleDualTone(ctx, 853, 960, 0.96, 0.35, 0.24);
         } else {
-            scheduleTone(ctx, "sine", 523.25, 0, 0.14, 0.16);
-            scheduleTone(ctx, "sine", 659.25, 0.15, 0.22, 0.16);
+            scheduleDualTone(ctx, 853, 960, 0.00, 0.25, 0.18);
+            scheduleDualTone(ctx, 853, 960, 0.36, 0.35, 0.18);
         }
     } catch (e) {
         console.warn("Audio alarm skipped:", e);
     }
+}
+
+function showNdrrmcAlertModal(inc) {
+    const modal = document.getElementById("ndrrmcModal");
+    if (!modal) return;
+    const pr = String(inc.priority || "RED").toUpperCase();
+    const pill = document.getElementById("ndrrmcPriorityPill");
+    if (pill) {
+        pill.textContent = pr;
+        pill.className = `priority ${pr.toLowerCase()}-priority`;
+    }
+    setText("ndrrmcTitle", `${pr} PRIORITY EMERGENCY DISPATCH`);
+    setText("ndrrmcLocation", `📍 ${inc.building} – ${inc.room}`);
+    setText(
+        "ndrrmcDetails",
+        `${inc.typeName ? inc.typeName + " • " : ""}Patients: ${inc.patients} • Reported by ${inc.reporterName} (${inc.reporterId}) ${timeAgo(inc.createdAt)}. ${inc.details || ""}`
+    );
+    const respBtn = document.getElementById("ndrrmcRespondBtn");
+    if (respBtn) {
+        respBtn.onclick = () => {
+            dismissNdrrmcModal();
+            showSection("emergency");
+        };
+    }
+    modal.classList.add("show");
+}
+
+function dismissNdrrmcModal() {
+    const modal = document.getElementById("ndrrmcModal");
+    if (modal) modal.classList.remove("show");
 }
 
 function syncAlarmLoop() {
@@ -370,10 +419,11 @@ function notifyNewIncidents(active) {
     fresh
         .filter(i => i.status === "DISPATCHED" && i.reporterId !== state.user.studentId)
         .forEach(i => {
-            toast(`🚨 ${i.priority} alert: ${i.building} – ${i.room}`, "error", 8000);
+            toast(`🚨 NDRRMC ALERT (${i.priority}): ${i.building} – ${i.room}`, "error", 9000);
             playEmergencyAlarm(i.priority);
+            showNdrrmcAlertModal(i);
             if ("Notification" in window && Notification.permission === "granted") {
-                new Notification(`Lifeline ${i.priority} emergency`, {
+                new Notification(`🚨 LIFELINE ${i.priority} EMERGENCY`, {
                     body: `${i.building} – ${i.room} • ${i.patients} patient(s)`
                 });
             }
@@ -381,10 +431,82 @@ function notifyNewIncidents(active) {
 }
 
 /* =====================================================================
+   CLICKABLE NOTIFICATION BELL & DETAILS DRAWER
+   ===================================================================== */
+function toggleNotifDropdown(event) {
+    if (event) event.stopPropagation();
+    closeProfileDropdown();
+    const menu = document.getElementById("notifDropdownMenu");
+    if (menu) menu.classList.toggle("show");
+}
+
+function closeNotifDropdown() {
+    const menu = document.getElementById("notifDropdownMenu");
+    if (menu) menu.classList.remove("show");
+}
+
+document.addEventListener("click", function (event) {
+    const notifBox = document.getElementById("notifMenuContainer");
+    if (notifBox && !notifBox.contains(event.target)) closeNotifDropdown();
+});
+
+function openNotificationItem(sectionTarget) {
+    closeNotifDropdown();
+    showSection(sectionTarget || "emergency");
+}
+
+function updateNotificationBell() {
+    const el = document.getElementById("notifCount");
+    const bellBtn = document.getElementById("notifBellBtn");
+    const headerBadge = document.getElementById("notifHeaderBadge");
+    const listEl = document.getElementById("notifDropdownList");
+
+    const items = isResponder()
+        ? state.active
+        : state.mine.filter(i => i.status !== "RESOLVED");
+
+    const unackedCount = isResponder()
+        ? state.active.filter(i => i.status === "DISPATCHED").length
+        : items.length;
+
+    if (el) {
+        el.textContent = unackedCount;
+        el.style.display = unackedCount > 0 ? "flex" : "none";
+    }
+    if (bellBtn) {
+        bellBtn.classList.toggle("has-alerts", unackedCount > 0);
+    }
+    if (headerBadge) {
+        headerBadge.textContent = `${items.length} Active`;
+    }
+    if (listEl) {
+        if (items.length === 0) {
+            listEl.innerHTML = `<p class="empty-note" style="padding:14px 8px; text-align:center;">No active emergency alerts.</p>`;
+        } else {
+            listEl.innerHTML = items.map(inc => {
+                const pr = esc(String(inc.priority || "RED").toLowerCase());
+                const statusText = STATUS_LABEL[inc.status] || inc.status;
+                const targetSec = isResponder() ? "emergency" : (isGuest() ? "emergency" : "dashboard");
+                return `
+                <button type="button" class="notif-item ${pr}-item" onclick="openNotificationItem('${targetSec}')">
+                    <div class="notif-item-top">
+                        <strong>${esc(inc.id)} • ${esc(statusText)}</strong>
+                        <span class="priority ${pr}-priority">${esc(inc.priority)}</span>
+                    </div>
+                    <p class="notif-item-loc">📍 ${esc(inc.building)} - ${esc(inc.room)}</p>
+                    <p class="notif-item-meta">${inc.typeName ? esc(inc.typeName) + " • " : ""}${esc(inc.patients)} patient(s) • ${esc(timeAgo(inc.createdAt))}</p>
+                </button>`;
+            }).join("");
+        }
+    }
+}
+
+/* =====================================================================
    PROFILE DROPDOWN
    ===================================================================== */
 function toggleProfileDropdown(event) {
     if (event) event.stopPropagation();
+    closeNotifDropdown();
     const menu = document.getElementById("profileDropdownMenu");
     const container = document.getElementById("userProfileMenuContainer");
     if (menu) {
@@ -1024,16 +1146,6 @@ function renderDashboardStats() {
     }
 }
 
-function updateNotificationBell() {
-    const el = document.getElementById("notifCount");
-    if (!el) return;
-    const n = isResponder()
-        ? state.active.filter(i => i.status === "DISPATCHED").length
-        : state.mine.filter(i => i.status !== "RESOLVED").length;
-    el.textContent = n;
-    el.style.display = n > 0 ? "flex" : "none";
-}
-
 function closeModal() {
     const modal = document.getElementById("alertModal");
     if (modal) modal.classList.remove("show");
@@ -1041,6 +1153,8 @@ function closeModal() {
 
 const alertModalEl = document.getElementById("alertModal");
 if (alertModalEl) alertModalEl.addEventListener("click", e => { if (e.target === alertModalEl) closeModal(); });
+const ndrrmcModalEl = document.getElementById("ndrrmcModal");
+if (ndrrmcModalEl) ndrrmcModalEl.addEventListener("click", e => { if (e.target === ndrrmcModalEl) dismissNdrrmcModal(); });
 const loginReqModalEl = document.getElementById("loginRequiredModal");
 if (loginReqModalEl) loginReqModalEl.addEventListener("click", e => { if (e.target === loginReqModalEl) closeLoginRequiredModal(); });
 const profileEditModalEl = document.getElementById("profileEditModal");
@@ -1053,11 +1167,13 @@ if (codeModalEl) codeModalEl.addEventListener("click", e => { if (e.target === c
 document.addEventListener("keydown", e => {
     if (e.key === "Escape") {
         closeModal();
+        dismissNdrrmcModal();
         closeProfileEdit();
         closeChangePassword();
         closeCodeModal();
         closeLoginRequiredModal();
         closeMobileSidebar();
+        closeNotifDropdown();
     }
 });
 
@@ -1163,7 +1279,7 @@ if (panelAnnouncementForm) {
 }
 
 /* =====================================================================
-   CPR ROSTER & MEDIC ON DUTY (MEMBERS ONLY)
+   CPR ROSTER & MEDIC ON DUTY
    ===================================================================== */
 function renderSquadOverview() {
     const box = document.getElementById("squadOverviewList");

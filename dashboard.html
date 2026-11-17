@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lifeline | Emergency Alert &amp; Dispatch Hub</title>
-    <link rel="stylesheet" href="css/style.css?v=5">
+    <link rel="stylesheet" href="css/style.css?v=9">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -81,9 +81,27 @@
                     <button type="button" id="soundToggleBtn" class="sound-pill" onclick="toggleSoundAlerts()">🔊 Sound On</button>
                     <button type="button" id="enableAlertsBtn" class="secondary-button btn-sm" onclick="enableAlerts()" style="display:none;">Enable Alerts</button>
 
-                    <div class="notif-bell" title="Active Notifications">
-                        🔔
-                        <span id="notifCount" class="notif-badge" style="display:none;">0</span>
+                    <!-- CLICKABLE NOTIFICATION BELL & DETAILS DRAWER -->
+                    <div class="notif-wrapper" id="notifMenuContainer">
+                        <button type="button" class="notif-bell" id="notifBellBtn" onclick="toggleNotifDropdown(event)" title="View Emergency Notifications" aria-label="Notifications">
+                            🔔
+                            <span id="notifCount" class="notif-badge" style="display:none;">0</span>
+                        </button>
+
+                        <div id="notifDropdownMenu" class="notif-dropdown">
+                            <div class="notif-dropdown-header">
+                                <strong>🚨 Emergency Notifications</strong>
+                                <span id="notifHeaderBadge" class="priority red-priority">0 Active</span>
+                            </div>
+                            <div id="notifDropdownList" class="notif-dropdown-list">
+                                <p class="empty-note">No active alerts right now.</p>
+                            </div>
+                            <div class="notif-dropdown-footer">
+                                <button type="button" class="secondary-button btn-xs full-btn" onclick="closeNotifDropdown(); showSection('emergency');">
+                                    Open Dispatch Hub
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- GUEST CONTROLS -->
@@ -579,6 +597,23 @@
         </div>
     </div>
 
+    <!-- NDRRMC-STYLE INCOMING EMERGENCY BROADCAST MODAL -->
+    <div id="ndrrmcModal" class="modal ndrrmc-overlay">
+        <div class="modal-content ndrrmc-card">
+            <div class="ndrrmc-header">
+                <span class="ndrrmc-badge">⚠️ EMERGENCY ALERT • LIFELINE DISPATCH</span>
+                <span id="ndrrmcPriorityPill" class="priority red-priority">RED</span>
+            </div>
+            <h3 id="ndrrmcTitle" style="margin:12px 0 6px; font-size:20px;">CAMPUS MEDICAL EMERGENCY</h3>
+            <p id="ndrrmcLocation" style="font-weight:700; font-size:15px; color:#0f172a; margin:0 0 8px;"></p>
+            <p id="ndrrmcDetails" style="font-size:13.5px; color:#475569; margin:0 0 16px; line-height:1.45;"></p>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button type="button" id="ndrrmcRespondBtn" class="dispatch-button" style="flex:1;">🚨 View &amp; Respond</button>
+                <button type="button" class="secondary-button" onclick="dismissNdrrmcModal()">Silence &amp; Close</button>
+            </div>
+        </div>
+    </div>
+
     <div id="loginRequiredModal" class="modal">
         <div class="modal-content">
             <h3>🔒 Sign In Required</h3>
@@ -644,6 +679,6 @@
         </div>
     </div>
 
-    <script src="js/script.js?v=7"></script>
+    <script src="js/script.js?v=9"></script>
 </body>
 </html>
