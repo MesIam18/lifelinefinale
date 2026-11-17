@@ -9,7 +9,8 @@ const ID_REGEX = /^2\d-\d{4}-\d{3}$/;
 const LS = {
     sidebar: "lifelineSidebarCollapsed",
     section: "lifelineActiveSection",
-    alerts: "lifelineAlertsEnabled"
+    alerts: "lifelineAlertsEnabled",
+    loggedIn: "lifelineLoggedIn"
 };
 
 const STATUS_LABEL = { DISPATCHED: "Dispatched", RESPONDING: "Responding", ON_SCENE: "On-scene", RESOLVED: "Resolved" };
@@ -38,6 +39,7 @@ let redirecting = false;
 function goToLogin() {
     if (redirecting) return;
     redirecting = true;
+    localStorage.removeItem(LS.loggedIn);
     window.location.replace("index.html");
 }
 
@@ -457,6 +459,7 @@ if (loginForm) {
         btn.disabled = true;
         try {
             await api("auth.php?action=login", { method: "POST", body: { student_id: studentId, password } });
+            localStorage.setItem(LS.loggedIn, "1");
             localStorage.setItem(LS.section, "dashboard");
             window.location.replace("dashboard.html");
         } catch (err) {
@@ -522,8 +525,9 @@ if (registerForm) {
 
 async function logout() {
     stopAlarmLoop();
-    try { await api("auth.php?action=logout", { method: "POST" }); } catch (e) { /* ignore */ }
+    localStorage.removeItem(LS.loggedIn);
     localStorage.removeItem(LS.section);
+    try { await api("auth.php?action=logout", { method: "POST" }); } catch (e) { /* ignore */ }
     goToLogin();
 }
 
@@ -1607,6 +1611,15 @@ async function pollTick() {
     }
 }
 
+function lockDashboardHistory() {
+    history.pushState({ lifelineDash: true }, "", window.location.href);
+    window.addEventListener("popstate", () => {
+        if (state.user) {
+            history.pushState({ lifelineDash: true }, "", window.location.href);
+        }
+    });
+}
+
 async function startDashboard() {
     if (localStorage.getItem(LS.sidebar) === "true") {
         const sidebar = document.getElementById("appSidebar");
@@ -1618,6 +1631,13 @@ async function startDashboard() {
         state.user = me && me.user ? me.user : null;
     } catch (err) {
         state.user = null;
+    }
+
+    if (!state.user) {
+        localStorage.removeItem(LS.loggedIn);
+    } else {
+        localStorage.setItem(LS.loggedIn, "1");
+        lockDashboardHistory();
     }
 
     applyGuestAccessLocks();
@@ -1662,12 +1682,19 @@ async function startDashboard() {
 }
 
 async function startLoginPage() {
+    if (localStorage.getItem(LS.loggedIn) === "1") {
+        window.location.replace("dashboard.html");
+        return;
+    }
     try {
         const me = await api("auth.php?action=me");
         if (me && me.user) {
+            localStorage.setItem(LS.loggedIn, "1");
             window.location.replace("dashboard.html");
+            return;
         }
     } catch (e) { /* stay on login page */ }
+    document.body.style.visibility = "visible";
 }
 
 function initApp() {
