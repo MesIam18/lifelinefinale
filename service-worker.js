@@ -1,5 +1,5 @@
-const CACHE = "lifeline-shell-v5";
-const SHELL = ["./", "./index.html", "./dashboard.html", "./css/style.css?v=5", "./js/script.js?v=5", "./manifest.webmanifest", "./icons/lifeline.svg"];
+const CACHE = "lifeline-shell-v6";
+const SHELL = ["./", "./index.html", "./dashboard.html", "./css/style.css?v=5", "./js/script.js?v=6", "./manifest.webmanifest", "./icons/lifeline.svg"];
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
 });

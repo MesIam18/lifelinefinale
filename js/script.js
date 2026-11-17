@@ -458,7 +458,7 @@ if (loginForm) {
         try {
             await api("auth.php?action=login", { method: "POST", body: { student_id: studentId, password } });
             localStorage.setItem(LS.section, "dashboard");
-            window.location.href = "dashboard.html";
+            window.location.replace("dashboard.html");
         } catch (err) {
             if (err.code === "not_registered" || err.code === "needs_activation") {
                 toast(err.message, "error", 6000);
@@ -1677,6 +1677,12 @@ function initApp() {
     if (document.getElementById("dashboard")) startDashboard();
     else startLoginPage();
 }
+
+window.addEventListener("pageshow", (event) => {
+    if (event.persisted && !document.getElementById("dashboard")) {
+        startLoginPage();
+    }
+});
 
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initApp);
