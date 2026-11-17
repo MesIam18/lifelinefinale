@@ -691,8 +691,27 @@ function switchOfficerPublishTab(tab) {
 }
 
 /* =====================================================================
-   NAVIGATION
+   NAVIGATION & MOBILE DRAWER
    ===================================================================== */
+function ensureSidebarBackdrop() {
+    let backdrop = document.getElementById("sidebarBackdrop");
+    if (!backdrop) {
+        backdrop = document.createElement("div");
+        backdrop.id = "sidebarBackdrop";
+        backdrop.className = "sidebar-backdrop";
+        backdrop.addEventListener("click", closeMobileSidebar);
+        document.body.appendChild(backdrop);
+    }
+    return backdrop;
+}
+
+function closeMobileSidebar() {
+    const sidebar = document.querySelector(".sidebar");
+    const backdrop = document.getElementById("sidebarBackdrop");
+    if (sidebar) sidebar.classList.remove("open");
+    if (backdrop) backdrop.classList.remove("show");
+}
+
 function toggleSidebarCollapse() {
     const sidebar = document.getElementById("appSidebar");
     if (sidebar) {
@@ -703,7 +722,10 @@ function toggleSidebarCollapse() {
 
 function toggleSidebar() {
     const sidebar = document.querySelector(".sidebar");
-    if (sidebar) sidebar.classList.toggle("open");
+    if (!sidebar) return;
+    const isOpen = sidebar.classList.toggle("open");
+    const backdrop = ensureSidebarBackdrop();
+    backdrop.classList.toggle("show", isOpen);
 }
 
 function showSection(sectionId, isInitialLoad = false) {
@@ -764,8 +786,7 @@ function showSection(sectionId, isInitialLoad = false) {
     }
     setText("pageSubtitle", subtitleMap[sectionId] || "");
 
-    const sidebar = document.querySelector(".sidebar");
-    if (sidebar) sidebar.classList.remove("open");
+    closeMobileSidebar();
     if (!isInitialLoad) window.scrollTo({ top: 0, behavior: "smooth" });
 
     if (!isGuest() && sectionId === "analytics") loadAnalytics();
@@ -1036,6 +1057,7 @@ document.addEventListener("keydown", e => {
         closeChangePassword();
         closeCodeModal();
         closeLoginRequiredModal();
+        closeMobileSidebar();
     }
 });
 
