@@ -1,10 +1,23 @@
 <?php
-$env = static function (string $key, mixed $default = null): mixed {
+$procEnv = [];
+if (is_readable('/proc/1/environ')) {
+    $raw = file_get_contents('/proc/1/environ');
+    if ($raw !== false) {
+        foreach (explode("\0", $raw) as $pair) {
+            $pos = strpos($pair, '=');
+            if ($pos !== false) {
+                $procEnv[substr($pair, 0, $pos)] = substr($pair, $pos + 1);
+            }
+        }
+    }
+}
+
+$env = static function (string $key, mixed $default = null) use ($procEnv): mixed {
     $val = $_ENV[$key] ?? $_SERVER[$key] ?? getenv($key);
     if ($val === false || $val === null || trim((string)$val) === '') {
-        return $default;
+        $val = $procEnv[$key] ?? $default;
     }
-    return trim((string)$val);
+    return ($val !== null && trim((string)$val) !== '') ? trim((string)$val) : $default;
 };
 
 $host = $env('MYSQLHOST');
