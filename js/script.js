@@ -19,6 +19,47 @@ const NEXT_STATUS = { DISPATCHED: "RESPONDING", RESPONDING: "ON_SCENE", ON_SCENE
 
 const GUEST_LOCKED_SECTIONS = new Set(["dashboard", "roster", "announcements", "training", "analytics", "profile"]);
 
+const CONDITIONS_BY_PRIORITY = {
+    RED: [
+        "Cardiac Arrest / Unresponsive",
+        "Severe Bleeding / Hemorrhage",
+        "Difficulty Breathing / Asthma Attack",
+        "Difficulty Breathing",
+        "Severe Allergic Reaction (Anaphylaxis)",
+        "Allergic Reaction",
+        "Seizure / Convulsions",
+        "Chest Pain",
+        "Head / Neck / Spinal Trauma",
+        "Heat Stroke / Collapse",
+        "Choking / Airway Obstruction"
+    ],
+    YELLOW: [
+        "Fracture / Dislocation",
+        "Fracture",
+        "Deep Wound / Laceration",
+        "Moderate Burn",
+        "Burn",
+        "Fainting / Syncope",
+        "Fainting",
+        "High Fever / Severe Dehydration",
+        "Sports / Blunt Impact Injury",
+        "Asthma (Mild / Controlled)"
+    ],
+    GREEN: [
+        "Minor Cut / Scrape",
+        "Minor Cut",
+        "Sprain / Strain",
+        "Sprain",
+        "Nosebleed",
+        "Headache / Migraine",
+        "Headache",
+        "Fever / Flu",
+        "Dizziness / Lightheadedness",
+        "Stomach Ache / Nausea",
+        "Minor Bruise / Contusion"
+    ]
+};
+
 const state = {
     user: null,
     meta: { buildings: [], squads: [], zones: [], types: [] },
@@ -916,8 +957,47 @@ function showSection(sectionId, isInitialLoad = false) {
 }
 
 /* =====================================================================
-   EMERGENCY DISPATCH
+   EMERGENCY DISPATCH (DYNAMIC CONDITION BY PRIORITY & ROOM DROPDOWN)
    ===================================================================== */
+function updateConditionDropdownByPriority() {
+    const selected = document.querySelector('input[name="priority"]:checked');
+    const group = document.getElementById("incidentTypeGroup");
+    const select = document.getElementById("incidentType");
+    const label = document.getElementById("incidentTypeLabel");
+    if (!group || !select) return;
+
+    if (!selected) {
+        group.style.display = "none";
+        select.innerHTML = '<option value="">Not sure / Other</option>';
+        return;
+    }
+
+    const priority = selected.value;
+    const allowedNames = CONDITIONS_BY_PRIORITY[priority] || [];
+    const byName = new Map(state.meta.types.map(t => [t.name.toLowerCase(), t]));
+
+    const filtered = [];
+    const seenIds = new Set();
+    allowedNames.forEach(name => {
+        const match = byName.get(name.toLowerCase());
+        if (match && !seenIds.has(match.id)) {
+            seenIds.add(match.id);
+            filtered.push(match);
+        }
+    });
+
+    const otherItem = state.meta.types.find(t => t.name.toLowerCase() === "other");
+    if (otherItem && !seenIds.has(otherItem.id)) {
+        filtered.push(otherItem);
+    }
+
+    if (label) {
+        label.textContent = `${priority} Priority Condition / Complaint (optional)`;
+    }
+    fillSelect(select, filtered, "Not sure / Other");
+    group.style.display = "block";
+}
+
 function updateRoomDropdown() {
     const buildingSelect = document.getElementById("building");
     const roomSelect = document.getElementById("room");
@@ -984,6 +1064,7 @@ if (emergencyForm) {
             document.getElementById("alertModal").classList.add("show");
 
             emergencyForm.reset();
+            updateConditionDropdownByPriority();
             updateRoomDropdown();
             await pollTick();
         } catch (err) {
@@ -1795,7 +1876,7 @@ async function startDashboard() {
     }
 
     fillSelect(document.getElementById("building"), state.meta.buildings, "Select Building");
-    fillSelect(document.getElementById("incidentType"), state.meta.types, "Not sure / Other");
+    updateConditionDropdownByPriority();
     if (isOfficer()) {
         fillSelect(document.getElementById("newMemberTeam"), state.meta.squads);
         fillSelect(document.getElementById("newMemberZone"), state.meta.zones);
