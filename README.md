@@ -78,3 +78,4 @@ Use a PHP hosting provider with **HTTPS + MySQL/MariaDB** (shared hosting/cPanel
 - PHP source is displayed instead of executing: PHP is not configured on that host.
 - PWA install is missing: use HTTPS and a supported browser; open the site in the browser rather than an in-app browser.
 "# lifelinefinale" 
+"# lifelinefinale" 
