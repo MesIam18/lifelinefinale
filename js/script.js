@@ -24,9 +24,7 @@ const CONDITIONS_BY_PRIORITY = {
         "Cardiac Arrest / Unresponsive",
         "Severe Bleeding / Hemorrhage",
         "Difficulty Breathing / Asthma Attack",
-        "Difficulty Breathing",
         "Severe Allergic Reaction (Anaphylaxis)",
-        "Allergic Reaction",
         "Seizure / Convulsions",
         "Chest Pain",
         "Head / Neck / Spinal Trauma",
@@ -35,24 +33,18 @@ const CONDITIONS_BY_PRIORITY = {
     ],
     YELLOW: [
         "Fracture / Dislocation",
-        "Fracture",
         "Deep Wound / Laceration",
         "Moderate Burn",
-        "Burn",
         "Fainting / Syncope",
-        "Fainting",
         "High Fever / Severe Dehydration",
         "Sports / Blunt Impact Injury",
         "Asthma (Mild / Controlled)"
     ],
     GREEN: [
         "Minor Cut / Scrape",
-        "Minor Cut",
         "Sprain / Strain",
-        "Sprain",
         "Nosebleed",
         "Headache / Migraine",
-        "Headache",
         "Fever / Flu",
         "Dizziness / Lightheadedness",
         "Stomach Ache / Nausea",
@@ -986,18 +978,12 @@ function updateConditionDropdownByPriority() {
         }
     });
 
-    const otherItem = state.meta.types.find(t => t.name.toLowerCase() === "other");
-    if (otherItem && !seenIds.has(otherItem.id)) {
-        filtered.push(otherItem);
-    }
-
     if (label) {
         label.textContent = `${priority} Priority Condition / Complaint (optional)`;
     }
     fillSelect(select, filtered, "Not sure / Other");
     group.style.display = "block";
 }
-
 function updateRoomDropdown() {
     const buildingSelect = document.getElementById("building");
     const roomSelect = document.getElementById("room");
