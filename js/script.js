@@ -50,7 +50,7 @@ const CONDITIONS_BY_PRIORITY = {
         "Stomach Ache / Nausea",
         "Minor Bruise / Contusion"
     ]
-};  
+};
 
 const state = {
     user: null,
@@ -200,6 +200,70 @@ function fillSelect(select, items, placeholder) {
         select.appendChild(o);
     });
     if (prev && [...select.options].some(o => o.value === prev)) select.value = prev;
+}
+
+function lifelineConfirm({
+    title = "Confirm Action",
+    message = "",
+    subtext = "",
+    confirmText = "Confirm",
+    cancelText = "Cancel",
+    priority = null,
+    danger = true
+} = {}) {
+    return new Promise(resolve => {
+        const modal = document.getElementById("lifelineConfirmModal");
+        const okBtn = document.getElementById("confirmModalOkBtn");
+        const cancelBtn = document.getElementById("confirmModalCancelBtn");
+        const badge = document.getElementById("confirmModalBadge");
+
+        if (!modal || !okBtn || !cancelBtn) {
+            resolve(window.confirm(`${message}\n\n${subtext}`.trim()));
+            return;
+        }
+
+        setText("confirmModalTitle", title);
+        setText("confirmModalMessage", message);
+        setText("confirmModalSubtext", subtext);
+        okBtn.textContent = confirmText;
+        cancelBtn.textContent = cancelText;
+        okBtn.className = danger ? "dispatch-button" : "primary-button";
+
+        if (badge) {
+            if (priority) {
+                const pr = String(priority).toUpperCase();
+                badge.textContent = pr;
+                badge.className = `priority ${pr.toLowerCase()}-priority`;
+                badge.style.display = "inline-block";
+            } else {
+                badge.style.display = "none";
+            }
+        }
+
+        const cleanup = result => {
+            modal.classList.remove("show");
+            okBtn.onclick = null;
+            cancelBtn.onclick = null;
+            modal.onclick = null;
+            document.removeEventListener("keydown", onKey);
+            resolve(result);
+        };
+
+        const onKey = e => {
+            if (e.key === "Escape") {
+                e.stopImmediatePropagation();
+                cleanup(false);
+            }
+        };
+
+        okBtn.onclick = () => cleanup(true);
+        cancelBtn.onclick = () => cleanup(false);
+        modal.onclick = e => { if (e.target === modal) cleanup(false); };
+        document.addEventListener("keydown", onKey);
+
+        modal.classList.add("show");
+        okBtn.focus();
+    });
 }
 
 /* =====================================================================
@@ -745,9 +809,9 @@ async function verifyOTP() {
 }
 
 /* =====================================================================
-   ROLE DASHBOARD & MEDIC ON DUTY (MEMBERS ONLY)
+   ROLE DASHBOARD, ADMIN DEV VIEW SWITCHER & MEDIC ON DUTY
    ===================================================================== */
-let adminPreviewRole = null; // null = default admin/officer view
+let adminPreviewRole = null;
 
 function setAdminPreviewRole(previewRole) {
     adminPreviewRole = previewRole;
@@ -833,8 +897,8 @@ function renderRoleDashboard() {
 }
 
 async function toggleSelfDuty() {
-    if (!state.user || !isMember()) {
-        toast("Medic on Duty toggle is for CPR members only.", "error");
+    if (!state.user || !isResponder()) {
+        toast("Duty toggle is for CPR responders only.", "error");
         return;
     }
     try {
@@ -1002,6 +1066,7 @@ function updateConditionDropdownByPriority() {
     fillSelect(select, filtered, "Not sure / Other");
     group.style.display = "block";
 }
+
 function updateRoomDropdown() {
     const buildingSelect = document.getElementById("building");
     const roomSelect = document.getElementById("room");
@@ -1036,7 +1101,16 @@ if (emergencyForm) {
         const buildingName = buildingSel.options[buildingSel.selectedIndex].text;
         const roomName = roomSel.options[roomSel.selectedIndex].text;
 
-        if (!confirm(`Send a ${priority.value} emergency alert for ${buildingName} – ${roomName}?\n\nFalse alarms delay help for real emergencies.`)) return;
+        const confirmed = await lifelineConfirm({
+            title: "🚨 Confirm Emergency Dispatch",
+            message: `Send a ${priority.value} emergency alert for ${buildingName} – ${roomName}?`,
+            subtext: "False alarms delay help for real emergencies. Available CPR responders will be alerted immediately.",
+            confirmText: "🚨 Send Alert Now",
+            cancelText: "Cancel",
+            priority: priority.value,
+            danger: true
+        });
+        if (!confirmed) return;
 
         const btn = emergencyForm.querySelector(".dispatch-button");
         btn.disabled = true;
@@ -1313,7 +1387,15 @@ async function loadAnnouncements() {
 
 async function deleteAnnouncement(id) {
     if (!isOfficer()) return;
-    if (!confirm("Delete this announcement?")) return;
+    const confirmed = await lifelineConfirm({
+        title: "Delete Announcement",
+        message: "Are you sure you want to delete this announcement?",
+        subtext: "This action cannot be undone.",
+        confirmText: "Delete",
+        cancelText: "Keep",
+        danger: true
+    });
+    if (!confirmed) return;
     try {
         await api("announcements.php?action=delete", { method: "POST", body: { id } });
         toast("Announcement deleted.", "success");
@@ -1390,7 +1472,9 @@ function renderCPRRoster() {
             if (m.status === "Off Duty") statusColor = "status-dot";
             const options = state.meta.squads.map(s =>
                 `<option value="${s.id}" ${s.id === m.squadId ? "selected" : ""}>${esc(s.name)}</option>`).join("");
-            const roleTag = (m.role === "officer" || m.role === "admin") ? " <small class=\"muted-id\">(Officer)</small>" : "";
+            const roleTag = (m.role === "officer" || m.role === "admin")
+                ? ` <small class="muted-id">(${m.role === "admin" ? "Admin" : "Officer"})</small>`
+                : "";
             return `
             <tr>
                 <td><strong>${esc(m.name)}</strong>${roleTag}${m.activated === false ? ' <small class="muted-id">(not activated)</small>' : ""}</td>
@@ -1412,7 +1496,7 @@ function renderCPRRoster() {
         : activeMedics.map(m => {
             const initials = (m.name || "?").split(" ").filter(Boolean).map(n => n[0]).join("").substring(0, 2).toUpperCase();
             const badge = (m.status === "Responding" || m.status === "On-Scene") ? "busy" : "available";
-            const title = (m.role === "officer" || m.role === "admin") ? "CPR Officer" : "CPR Medic";
+            const title = m.role === "admin" ? "Admin / Dev" : (m.role === "officer" ? "CPR Officer" : "CPR Medic");
             return `
             <div class="responder">
                 <div class="responder-avatar">${esc(initials)}</div>
@@ -1604,7 +1688,15 @@ async function registerTraining(id) {
 }
 
 async function cancelTraining(id) {
-    if (!confirm("Cancel your registration for this session?")) return;
+    const confirmed = await lifelineConfirm({
+        title: "Cancel Training Registration",
+        message: "Cancel your registration for this training session?",
+        subtext: "Your slot will be released for other students.",
+        confirmText: "Yes, Cancel Slot",
+        cancelText: "Keep Registration",
+        danger: false
+    });
+    if (!confirmed) return;
     try {
         await api("training.php?action=cancel", { method: "POST", body: { session_id: id } });
         toast("Registration cancelled.", "success");

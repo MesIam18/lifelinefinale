@@ -678,7 +678,22 @@
             <button type="button" class="primary-button full-btn" onclick="closeCodeModal()">Done</button>
         </div>
     </div>
+<!-- CUSTOM LIFELINE CONFIRMATION POPUP (REPLACES BROWSER confirm()) -->
+    <div id="lifelineConfirmModal" class="modal">
+        <div class="modal-content" style="max-width:440px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
+                <h3 id="confirmModalTitle" style="margin:0;">Confirm Action</h3>
+                <span id="confirmModalBadge" class="priority red-priority" style="display:none;">RED</span>
+            </div>
+            <p id="confirmModalMessage" style="margin:0 0 8px; font-weight:600; color:#0f172a; line-height:1.45;"></p>
+            <p id="confirmModalSubtext" style="margin:0 0 18px; font-size:13px; color:#64748b; line-height:1.45;"></p>
+            <div style="display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
+                <button type="button" id="confirmModalCancelBtn" class="secondary-button">Cancel</button>
+                <button type="button" id="confirmModalOkBtn" class="dispatch-button">Confirm</button>
+            </div>
+        </div>
+    </div>
 
-    <script src="js/script.js?v=9"></script>
+    <script src="js/script.js?v=10"></script>
 </body>
 </html>
