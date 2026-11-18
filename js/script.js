@@ -908,7 +908,12 @@ function renderRoleDashboard() {
         }
         if (roleHeaderTitle) roleHeaderTitle.textContent = "Student Safety & Emergency Assistance";
         if (navDashText) navDashText.textContent = "Student Hub";
-        if (roleHeaderAction) roleHeaderAction.innerHTML = switcherHtml || `<button class="primary-button btn-sm" onclick="showSection('emergency')">🚨 Request Help</button>`;
+        if (roleHeaderAction) {
+            roleHeaderAction.innerHTML = switcherHtml || `
+                <button class="dispatch-button" onclick="showSection('emergency')" style="padding:16px 32px; font-size:17px; font-weight:800; border-radius:12px; letter-spacing:0.3px; box-shadow:0 6px 18px rgba(220,38,38,0.28); display:inline-flex; align-items:center; gap:10px; min-height:54px;">
+                    🚨 Send Emergency Request
+                </button>`;
+        }
     }
 }
 
@@ -1190,7 +1195,6 @@ function getResponderList(inc) {
 }
 
 function canAdvance(inc) {
-    // Allow multiple CPR responders (members, officers, admins) to join and advance any active incident
     if (!isResponder() || inc.status === "RESOLVED") return false;
     return true;
 }
@@ -1324,7 +1328,6 @@ async function joinDispatchTeam(id, btn) {
         try {
             await api("incidents.php?action=join", { method: "POST", body: { id } });
         } catch (e) {
-            // Fallback if backend only exposes advance
             const current = state.active.find(i => i.id === id);
             if (current && current.status !== "RESOLVED") {
                 await api("incidents.php?action=advance", { method: "POST", body: { id, status: current.status } });
@@ -1473,8 +1476,23 @@ document.addEventListener("keydown", e => {
 });
 
 /* =====================================================================
-   ANNOUNCEMENTS
+   ANNOUNCEMENTS (BANNER STYLE FOR BOTH DASHBOARD & ANNOUNCEMENT BOARD)
    ===================================================================== */
+function buildAnnouncementBannerHtml(ann, allowDelete = false) {
+    const del = (allowDelete && isOfficer())
+        ? `<button class="ann-delete" onclick="deleteAnnouncement(${Number(ann.id)})" aria-label="Delete announcement">✕</button>`
+        : "";
+    const badgeText = ann.featured ? "IMPORTANT" : (ann.icon ? `${ann.icon} ANNOUNCEMENT` : "IMPORTANT");
+    return `
+        <div class="large-announcement" style="width:100%; margin-bottom:14px;">
+            ${del}
+            <span class="announcement-label">${esc(badgeText)}</span>
+            <h2>${esc(ann.title)}</h2>
+            <p>${esc(ann.details || "")}</p>
+            <span>${esc(ann.dateLabel)}</span>
+        </div>`;
+}
+
 function renderAnnouncements() {
     const list = state.announcements;
 
@@ -1483,36 +1501,23 @@ function renderAnnouncements() {
 
     const latest = document.getElementById("latestAnnouncementsList");
     if (latest) {
+        const parentCard = latest.closest(".card");
+        if (parentCard) parentCard.style.gridColumn = "1 / -1";
+        latest.style.display = "flex";
+        latest.style.flexDirection = "column";
+        latest.style.gap = "12px";
+
         latest.innerHTML = list.length === 0
             ? `<p class="empty-note">No announcements yet.</p>`
-            : list.slice(0, 3).map(a => `
-                <div class="announcement-item"><div class="announcement-icon">${esc(a.icon || "📢")}</div>
-                <div><strong>${esc(a.title)}</strong><p>${esc(a.dateLabel)}</p></div></div>`).join("");
+            : list.slice(0, 3).map(ann => buildAnnouncementBannerHtml(ann, false)).join("");
     }
 
     const grid = document.getElementById("announcementBoardGrid");
     if (!grid) return;
 
-    const del = ann => isOfficer()
-        ? `<button class="ann-delete" onclick="deleteAnnouncement(${Number(ann.id)})" aria-label="Delete announcement">✕</button>` : "";
-
-    grid.innerHTML =
-        list.filter(a => a.featured).map(ann => `
-            <div class="large-announcement">
-                ${del(ann)}
-                <span class="announcement-label">IMPORTANT</span>
-                <h2>${esc(ann.title)}</h2>
-                <p>${esc(ann.details)}</p>
-                <span>${esc(ann.dateLabel)}</span>
-            </div>`).join("") +
-        list.filter(a => !a.featured).map(ann => `
-            <div class="card announcement-card">
-                ${del(ann)}
-                <div class="announcement-big-icon">${esc(ann.icon || "📢")}</div>
-                <h3>${esc(ann.title)}</h3>
-                <p>${esc(ann.details)}</p>
-                <strong>${esc(ann.dateLabel)}</strong>
-            </div>`).join("");
+    grid.innerHTML = list.length === 0
+        ? `<p class="empty-note">No announcements yet.</p>`
+        : list.map(ann => buildAnnouncementBannerHtml(ann, true)).join("");
 }
 
 async function loadAnnouncements() {
