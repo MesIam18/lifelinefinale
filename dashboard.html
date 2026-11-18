@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lifeline | Emergency Alert &amp; Dispatch Hub</title>
-    <link rel="stylesheet" href="css/style.css?v=10">
+    <link rel="stylesheet" href="css/style.css?v=12">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -292,7 +292,7 @@
             <section id="emergency" class="content-section active-section">
                 <div class="emergency-grid">
 
-                    <!-- LEFT COLUMN: DISPATCH FORM + EMERGENCY DISPATCHES FEED -->
+                    <!-- LEFT COLUMN: DISPATCH FORM + EMERGENCY DISPATCHES LOG -->
                     <div style="display:flex; flex-direction:column; gap:20px;">
                         <div class="card">
                             <div class="dispatch-warning-box">
@@ -372,12 +372,12 @@
                             </form>
                         </div>
 
-                        <!-- EMERGENCY DISPATCHES SECTION (NOTIFICATION BELL TARGET) -->
+                        <!-- EMERGENCY DISPATCHES FEED (NOTIFICATION BELL TARGET) -->
                         <div id="emergencyDispatchesCard" class="card">
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
                                 <div>
                                     <h3 style="margin:0;">🚨 Emergency Dispatches</h3>
-                                    <p style="font-size:12px; color:var(--muted); margin:2px 0 0;">Live campus emergency alerts &amp; dispatch activity</p>
+                                    <p style="font-size:12px; color:var(--muted); margin:2px 0 0;">Live campus emergency alerts &amp; multi-responder dispatch activity</p>
                                 </div>
                                 <span id="emergencyDispatchesBadge" class="priority red-priority">0 Active</span>
                             </div>
@@ -456,8 +456,13 @@
                 </div>
 
                 <div class="card">
-                    <h3>📋 Active CPR Roster &amp; Duty Assignments</h3>
-                    <div class="table-wrapper" style="margin-top:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:12px;">
+                        <h3 style="margin:0;">📋 Active CPR Roster &amp; Duty Assignments</h3>
+                        <div style="display:flex; align-items:center; gap:8px; flex:1; max-width:360px;">
+                            <input type="search" id="rosterSearchInput" placeholder="🔍 Search name, ID, team, zone, or status..." oninput="renderCPRRoster()" style="width:100%;">
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
                         <table class="data-table">
                             <thead>
                                 <tr>
@@ -613,22 +618,6 @@
         </div>
     </div>
 
-    <!-- CUSTOM LIFELINE CONFIRMATION POPUP (REPLACES BROWSER confirm()) -->
-    <div id="lifelineConfirmModal" class="modal">
-        <div class="modal-content" style="max-width:440px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
-                <h3 id="confirmModalTitle" style="margin:0;">Confirm Action</h3>
-                <span id="confirmModalBadge" class="priority red-priority" style="display:none;">RED</span>
-            </div>
-            <p id="confirmModalMessage" style="margin:0 0 8px; font-weight:600; color:#0f172a; line-height:1.45;"></p>
-            <p id="confirmModalSubtext" style="margin:0 0 18px; font-size:13px; color:#64748b; line-height:1.45;"></p>
-            <div style="display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
-                <button type="button" id="confirmModalCancelBtn" class="secondary-button">Cancel</button>
-                <button type="button" id="confirmModalOkBtn" class="dispatch-button">Confirm</button>
-            </div>
-        </div>
-    </div>
-
     <!-- NDRRMC-STYLE INCOMING EMERGENCY BROADCAST MODAL -->
     <div id="ndrrmcModal" class="modal ndrrmc-overlay">
         <div class="modal-content ndrrmc-card">
@@ -642,6 +631,22 @@
             <div style="display:flex; gap:10px; flex-wrap:wrap;">
                 <button type="button" id="ndrrmcRespondBtn" class="dispatch-button" style="flex:1;">🚨 View &amp; Respond</button>
                 <button type="button" class="secondary-button" onclick="dismissNdrrmcModal()">Silence &amp; Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CUSTOM LIFELINE CONFIRMATION POPUP (REPLACES BROWSER confirm()) -->
+    <div id="lifelineConfirmModal" class="modal">
+        <div class="modal-content" style="max-width:440px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
+                <h3 id="confirmModalTitle" style="margin:0;">Confirm Action</h3>
+                <span id="confirmModalBadge" class="priority red-priority" style="display:none;">RED</span>
+            </div>
+            <p id="confirmModalMessage" style="margin:0 0 8px; font-weight:600; color:#0f172a; line-height:1.45;"></p>
+            <p id="confirmModalSubtext" style="margin:0 0 18px; font-size:13px; color:#64748b; line-height:1.45;"></p>
+            <div style="display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
+                <button type="button" id="confirmModalCancelBtn" class="secondary-button">Cancel</button>
+                <button type="button" id="confirmModalOkBtn" class="dispatch-button">Confirm</button>
             </div>
         </div>
     </div>
@@ -711,6 +716,6 @@
         </div>
     </div>
 
-    <script src="js/script.js?v=10"></script>
+    <script src="js/script.js?v=12"></script>
 </body>
 </html>

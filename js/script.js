@@ -59,6 +59,8 @@ const state = {
     mine: [],
     recent: [],
     roster: [],
+    rosterQuery: "",
+    coResponders: {},
     announcements: [],
     training: { sessions: [], mine: [] },
     stats: null,
@@ -459,7 +461,7 @@ function showNdrrmcAlertModal(inc) {
     setText("ndrrmcLocation", `📍 ${inc.building} – ${inc.room}`);
     setText(
         "ndrrmcDetails",
-        `${inc.typeName ? inc.typeName + " • " : ""}Patients: ${inc.patients} • Reported by ${inc.reporterName} (${inc.reporterId}) ${timeAgo(inc.createdAt)}. ${inc.details || ""}`
+        `${inc.typeName ? inc.typeName + " • " : ""}Patients: ${inc.patients ?? 1} • Reported by ${inc.reporterName} (${inc.reporterId}) ${timeAgo(inc.createdAt)}. ${inc.details || ""}`
     );
     const respBtn = document.getElementById("ndrrmcRespondBtn");
     if (respBtn) {
@@ -521,7 +523,7 @@ function notifyNewIncidents(active) {
             showNdrrmcAlertModal(i);
             if ("Notification" in window && Notification.permission === "granted") {
                 new Notification(`🚨 LIFELINE ${i.priority} EMERGENCY`, {
-                    body: `${i.building} – ${i.room} • ${i.patients} patient(s)`
+                    body: `${i.building} – ${i.room} • ${i.patients ?? 1} patient(s)`
                 });
             }
         });
@@ -605,7 +607,7 @@ function updateNotificationBell() {
                         <span class="priority ${pr}-priority">${esc(inc.priority)}</span>
                     </div>
                     <p class="notif-item-loc">📍 ${esc(inc.building)} - ${esc(inc.room)}</p>
-                    <p class="notif-item-meta">${inc.typeName ? esc(inc.typeName) + " • " : ""}${esc(inc.patients)} patient(s) • ${esc(timeAgo(inc.createdAt))}</p>
+                    <p class="notif-item-meta">${inc.typeName ? esc(inc.typeName) + " • " : ""}${esc(inc.patients ?? 1)} patient(s) • ${esc(timeAgo(inc.createdAt))}</p>
                 </button>`;
             }).join("");
         }
@@ -1150,7 +1152,7 @@ if (emergencyForm) {
             knownIncidentIds.add(incident.id);
 
             setText("alertMessage",
-                `${incident.priority} priority emergency reported at ${incident.building} (${incident.room}). Patients: ${incident.patients}. ` +
+                `${incident.priority} priority emergency reported at ${incident.building} (${incident.room}). Patients: ${incident.patients ?? 1}. ` +
                 `Reference ID: ${incident.id}. Available CPR responders have been notified.`);
             playEmergencyAlarm(priority.value);
             document.getElementById("alertModal").classList.add("show");
@@ -1167,22 +1169,66 @@ if (emergencyForm) {
     });
 }
 
+/* =====================================================================
+   MULTI-RESPONDER DISPATCH & QUEUES
+   ===================================================================== */
+function getResponderList(inc) {
+    const names = new Set();
+    if (Array.isArray(inc.responders)) {
+        inc.responders.forEach(r => {
+            if (typeof r === "string" && r.trim()) names.add(r.trim());
+            else if (r && r.name) names.add(String(r.name).trim());
+        });
+    }
+    if (inc.responderName && String(inc.responderName).trim()) {
+        names.add(String(inc.responderName).trim());
+    }
+    (state.coResponders[inc.id] || []).forEach(n => {
+        if (n && String(n).trim()) names.add(String(n).trim());
+    });
+    return [...names];
+}
+
 function canAdvance(inc) {
+    // Allow multiple CPR responders (members, officers, admins) to join and advance any active incident
     if (!isResponder() || inc.status === "RESOLVED") return false;
-    if (inc.status === "DISPATCHED") return true;
-    return isOfficer() || inc.responderId === state.user.studentId;
+    return true;
+}
+
+function getDispatchActionHtml(inc, compact = false) {
+    if (!canAdvance(inc)) return "";
+    const next = NEXT_STATUS[inc.status];
+    const responders = getResponderList(inc);
+    const alreadyJoined = state.user && (
+        inc.responderId === state.user.studentId ||
+        responders.includes(state.user.name)
+    );
+
+    const label = {
+        RESPONDING: "Accept & Respond",
+        ON_SCENE: alreadyJoined ? "Mark Arrived On-Scene" : "Join & Mark On-Scene",
+        RESOLVED: "Mark Resolved"
+    }[next];
+    const cls = { RESPONDING: "", ON_SCENE: "btn-yellow", RESOLVED: "btn-green" }[next];
+
+    const joinBtn = (inc.status !== "DISPATCHED" && !alreadyJoined)
+        ? `<button class="secondary-button btn-sm" onclick="joinDispatchTeam('${esc(inc.id)}', this)">+ Join Response</button>`
+        : "";
+
+    return `<div class="dispatch-actions" style="${compact ? "margin-top:8px;" : ""} display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="primary-button btn-sm ${cls}" onclick="respondToDispatch('${esc(inc.id)}', '${next}', this)">${label}</button>
+        ${joinBtn}
+    </div>`;
+}
+
+function formatRespondersLine(inc) {
+    const list = getResponderList(inc);
+    if (list.length === 0) return "";
+    const label = list.length > 1 ? "Responders" : "Responder";
+    return ` (${label}: ${esc(list.join(", "))})`;
 }
 
 function buildDispatchCardHtml(inc) {
-    let action;
-    if (canAdvance(inc)) {
-        const next = NEXT_STATUS[inc.status];
-        const label = { RESPONDING: "Accept & Respond", ON_SCENE: "Mark Arrived On-Scene", RESOLVED: "Mark Resolved" }[next];
-        const cls = { RESPONDING: "", ON_SCENE: "btn-yellow", RESOLVED: "btn-green" }[next];
-        action = `<button class="primary-button btn-sm ${cls}" onclick="respondToDispatch('${esc(inc.id)}', '${next}', this)">${label}</button>`;
-    } else {
-        action = `<span class="handled-note">Handled by ${esc(inc.responderName || "another responder")}</span>`;
-    }
     const pr = esc(String(inc.priority).toLowerCase());
     return `
     <div class="card dispatch-card ${pr}-card">
@@ -1191,11 +1237,10 @@ function buildDispatchCardHtml(inc) {
             <span class="priority ${pr}-priority">${esc(inc.priority)}</span>
         </div>
         <p class="dispatch-loc">📍 ${esc(inc.building)} - ${esc(inc.room)}</p>
-        <p class="dispatch-meta">${inc.typeName ? esc(inc.typeName) + " | " : ""}Patients: ${esc(inc.patients)} | ${esc(inc.details)}</p>
+        <p class="dispatch-meta">${inc.typeName ? esc(inc.typeName) + " | " : ""}Patients: ${esc(inc.patients ?? 1)}${inc.details ? " | " + esc(inc.details) : ""}</p>
         <p class="dispatch-meta">Reported ${esc(timeAgo(inc.createdAt))}</p>
-        <p class="dispatch-status-line">Status: <span class="status ${STATUS_CLASS[inc.status] || "responding"}">${esc(STATUS_LABEL[inc.status] || inc.status)}</span>
-            ${inc.responderName ? `(Responder: ${esc(inc.responderName)})` : ""}</p>
-        <div class="dispatch-actions">${action}</div>
+        <p class="dispatch-status-line">Status: <span class="status ${STATUS_CLASS[inc.status] || "responding"}">${esc(STATUS_LABEL[inc.status] || inc.status)}</span>${formatRespondersLine(inc)}</p>
+        ${getDispatchActionHtml(inc, false)}
     </div>`;
 }
 
@@ -1252,14 +1297,6 @@ function renderEmergencyDispatchesSection() {
         const pr = esc(String(inc.priority || "RED").toLowerCase());
         const statusCls = STATUS_CLASS[inc.status] || "responding";
         const statusLbl = STATUS_LABEL[inc.status] || inc.status;
-        const actionBtn = canAdvance(inc)
-            ? (() => {
-                const next = NEXT_STATUS[inc.status];
-                const label = { RESPONDING: "Accept & Respond", ON_SCENE: "Mark Arrived On-Scene", RESOLVED: "Mark Resolved" }[next];
-                const cls = { RESPONDING: "", ON_SCENE: "btn-yellow", RESOLVED: "btn-green" }[next];
-                return `<div class="dispatch-actions" style="margin-top:8px;"><button class="primary-button btn-sm ${cls}" onclick="respondToDispatch('${esc(inc.id)}', '${next}', this)">${label}</button></div>`;
-            })()
-            : "";
 
         return `
         <div id="dispatch-item-${esc(inc.id)}" class="card dispatch-card ${pr}-card" style="margin-bottom:10px;">
@@ -1268,17 +1305,47 @@ function renderEmergencyDispatchesSection() {
                 <span class="priority ${pr}-priority">${esc(inc.priority)}</span>
             </div>
             <p class="dispatch-loc">📍 ${esc(inc.building)} – ${esc(inc.room)}</p>
-            <p class="dispatch-meta">Patients: ${esc(inc.patients)} • Reported ${esc(timeAgo(inc.createdAt))}${inc.reporterName ? " by " + esc(inc.reporterName) : ""}</p>
+            <p class="dispatch-meta">Patients: ${esc(inc.patients ?? 1)} • Reported ${esc(timeAgo(inc.createdAt))}${inc.reporterName ? " by " + esc(inc.reporterName) : ""}</p>
             ${inc.details ? `<p class="dispatch-meta">${esc(inc.details)}</p>` : ""}
-            <p class="dispatch-status-line">Status: <span class="status ${statusCls}">${esc(statusLbl)}</span>${inc.responderName ? ` (Responder: ${esc(inc.responderName)})` : ""}</p>
-            ${actionBtn}
+            <p class="dispatch-status-line">Status: <span class="status ${statusCls}">${esc(statusLbl)}</span>${formatRespondersLine(inc)}</p>
+            ${getDispatchActionHtml(inc, true)}
         </div>`;
     }).join("");
+}
+
+async function joinDispatchTeam(id, btn) {
+    if (!isResponder() || !state.user) return;
+    if (btn) btn.disabled = true;
+    try {
+        if (!state.coResponders[id]) state.coResponders[id] = [];
+        if (!state.coResponders[id].includes(state.user.name)) {
+            state.coResponders[id].push(state.user.name);
+        }
+        try {
+            await api("incidents.php?action=join", { method: "POST", body: { id } });
+        } catch (e) {
+            // Fallback if backend only exposes advance
+            const current = state.active.find(i => i.id === id);
+            if (current && current.status !== "RESOLVED") {
+                await api("incidents.php?action=advance", { method: "POST", body: { id, status: current.status } });
+            }
+        }
+        toast(`You joined the response team for ${id}.`, "success");
+    } catch (err) {
+        toast(err.message, "error", 5000);
+    }
+    await pollTick();
 }
 
 async function respondToDispatch(id, newStatus, btn) {
     if (btn) btn.disabled = true;
     try {
+        if (state.user) {
+            if (!state.coResponders[id]) state.coResponders[id] = [];
+            if (!state.coResponders[id].includes(state.user.name)) {
+                state.coResponders[id].push(state.user.name);
+            }
+        }
         await api("incidents.php?action=advance", { method: "POST", body: { id, status: newStatus } });
         toast(`Incident ${id} is now ${STATUS_LABEL[newStatus]}.`, "success");
     } catch (err) {
@@ -1303,7 +1370,10 @@ function renderMyRequests() {
             `<div class="dispatch-step ${i <= idx ? "active" : ""}"><span>${i + 1}</span><p>${labels[i]}</p></div>` +
             (i < steps.length - 1 ? `<div class="dispatch-line ${i < idx ? "done" : ""}"></div>` : "")
         ).join("");
-        const who = inc.responderName ? ` • Responder: ${esc(inc.responderName)}` : " • Waiting for a responder…";
+        const respList = getResponderList(inc);
+        const who = respList.length > 0
+            ? ` • ${respList.length > 1 ? "Responders" : "Responder"}: ${esc(respList.join(", "))}`
+            : " • Waiting for a responder…";
         const pr = esc(String(inc.priority).toLowerCase());
         return `
         <div class="my-request">
@@ -1362,7 +1432,7 @@ function renderDashboardStats() {
                     <td>${esc(i.typeName || "Emergency")}<br><small class="muted-id">${esc(i.id)}</small></td>
                     <td>${esc(i.building)} - ${esc(i.room)}</td>
                     <td><span class="priority ${pr}-priority">${esc(i.priority)}</span></td>
-                    <td>${esc(i.patients)}</td>
+                    <td>${esc(i.patients ?? 1)}</td>
                     <td><span class="status ${STATUS_CLASS[i.status] || "responding"}">${esc(STATUS_LABEL[i.status] || i.status)}</span></td>
                     <td>${esc(timeAgo(i.createdAt))}</td>
                 </tr>`;
@@ -1512,8 +1582,41 @@ if (panelAnnouncementForm) {
 }
 
 /* =====================================================================
-   CPR ROSTER & MEDIC ON DUTY
+   CPR ROSTER, LIVE SEARCH BAR & MEDIC ON DUTY
    ===================================================================== */
+function ensureRosterSearchBar() {
+    const tbody = document.getElementById("cprRosterTableBody");
+    if (!tbody) return null;
+
+    let input = document.getElementById("rosterSearchInput");
+    if (!input) {
+        const tableWrapper = tbody.closest(".table-wrapper");
+        const container = tableWrapper ? tableWrapper.parentElement : tbody.parentElement;
+        if (container) {
+            const bar = document.createElement("div");
+            bar.id = "rosterSearchBarWrapper";
+            bar.style.cssText = "display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin:12px 0;";
+            bar.innerHTML = `
+                <div style="position:relative; flex:1; min-width:240px;">
+                    <input type="search" id="rosterSearchInput" placeholder="🔍 Search CPR roster by name, Student ID, team, zone, or status..." style="width:100%; padding:10px 14px; border:1px solid #cbd5e1; border-radius:8px; font-size:14px;">
+                </div>
+                <span id="rosterSearchCount" style="font-size:12px; font-weight:600; color:#64748b;"></span>
+            `;
+            container.insertBefore(bar, tableWrapper || tbody);
+            input = document.getElementById("rosterSearchInput");
+        }
+    }
+
+    if (input && !input.dataset.bound) {
+        input.dataset.bound = "1";
+        input.addEventListener("input", () => {
+            state.rosterQuery = input.value.trim().toLowerCase();
+            renderCPRRoster();
+        });
+    }
+    return input;
+}
+
 function renderSquadOverview() {
     const box = document.getElementById("squadOverviewList");
     if (!box) return;
@@ -1532,25 +1635,49 @@ function renderCPRRoster() {
     const officerRoster = document.getElementById("officerRosterList");
 
     if (tbody && isOfficer()) {
-        tbody.innerHTML = roster.map(m => {
-            let statusColor = "available";
-            if (m.status === "Responding" || m.status === "On-Scene") statusColor = "busy";
-            if (m.status === "Off Duty") statusColor = "status-dot";
-            const options = state.meta.squads.map(s =>
-                `<option value="${s.id}" ${s.id === m.squadId ? "selected" : ""}>${esc(s.name)}</option>`).join("");
-            const roleTag = (m.role === "officer" || m.role === "admin")
-                ? ` <small class="muted-id">(${m.role === "admin" ? "Admin" : "Officer"})</small>`
-                : "";
-            return `
-            <tr>
-                <td><strong>${esc(m.name)}</strong>${roleTag}${m.activated === false ? ' <small class="muted-id">(not activated)</small>' : ""}</td>
-                <td><code>${esc(m.studentId)}</code></td>
-                <td><select class="roster-select" onchange="updateMedicSquad('${esc(m.studentId)}', this.value)">${options}</select></td>
-                <td>${esc(m.zone)}</td>
-                <td><span class="${statusColor}">● ${esc(m.status)}</span></td>
-                <td><button class="secondary-button btn-xs" onclick="toggleMedicDuty('${esc(m.studentId)}')">Toggle Duty</button></td>
-            </tr>`;
-        }).join("");
+        ensureRosterSearchBar();
+        const q = (state.rosterQuery || "").trim().toLowerCase();
+        const filteredRoster = q
+            ? roster.filter(m => {
+                const haystack = [
+                    m.name,
+                    m.studentId,
+                    m.squadName,
+                    m.zone,
+                    m.status,
+                    m.role
+                ].filter(Boolean).join(" ").toLowerCase();
+                return haystack.includes(q);
+            })
+            : roster;
+
+        setText("rosterSearchCount", q
+            ? `Showing ${filteredRoster.length} of ${roster.length} responders`
+            : `${roster.length} total responders`);
+
+        if (filteredRoster.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="empty-note">No CPR members match "${esc(state.rosterQuery)}".</td></tr>`;
+        } else {
+            tbody.innerHTML = filteredRoster.map(m => {
+                let statusColor = "available";
+                if (m.status === "Responding" || m.status === "On-Scene") statusColor = "busy";
+                if (m.status === "Off Duty") statusColor = "status-dot";
+                const options = state.meta.squads.map(s =>
+                    `<option value="${s.id}" ${s.id === m.squadId ? "selected" : ""}>${esc(s.name)}</option>`).join("");
+                const roleTag = (m.role === "officer" || m.role === "admin")
+                    ? ` <small class="muted-id">(${m.role === "admin" ? "Admin" : "Officer"})</small>`
+                    : "";
+                return `
+                <tr>
+                    <td><strong>${esc(m.name)}</strong>${roleTag}${m.activated === false ? ' <small class="muted-id">(not activated)</small>' : ""}</td>
+                    <td><code>${esc(m.studentId)}</code></td>
+                    <td><select class="roster-select" onchange="updateMedicSquad('${esc(m.studentId)}', this.value)">${options}</select></td>
+                    <td>${esc(m.zone)}</td>
+                    <td><span class="${statusColor}">● ${esc(m.status)}</span></td>
+                    <td><button class="secondary-button btn-xs" onclick="toggleMedicDuty('${esc(m.studentId)}')">Toggle Duty</button></td>
+                </tr>`;
+            }).join("");
+        }
     }
 
     const activeMedics = roster.filter(m =>
