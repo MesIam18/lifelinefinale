@@ -465,7 +465,7 @@ function showNdrrmcAlertModal(inc) {
     if (respBtn) {
         respBtn.onclick = () => {
             dismissNdrrmcModal();
-            showSection("emergency");
+            openNotificationItem(inc.id);
         };
     }
     modal.classList.add("show");
@@ -547,9 +547,24 @@ document.addEventListener("click", function (event) {
     if (notifBox && !notifBox.contains(event.target)) closeNotifDropdown();
 });
 
-function openNotificationItem(sectionTarget) {
+function openNotificationItem(incidentId = null) {
     closeNotifDropdown();
-    showSection(sectionTarget || "emergency");
+    showSection("emergency", true);
+
+    requestAnimationFrame(() => {
+        const target = (incidentId && document.getElementById(`dispatch-item-${incidentId}`))
+            || document.getElementById("emergencyDispatchesCard");
+        if (!target) return;
+
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        target.style.transition = "box-shadow 0.3s ease, outline 0.3s ease";
+        target.style.outline = "2px solid #dc2626";
+        target.style.boxShadow = "0 0 0 6px rgba(220, 38, 38, 0.18)";
+        setTimeout(() => {
+            target.style.outline = "";
+            target.style.boxShadow = "";
+        }, 2200);
+    });
 }
 
 function updateNotificationBell() {
@@ -583,9 +598,8 @@ function updateNotificationBell() {
             listEl.innerHTML = items.map(inc => {
                 const pr = esc(String(inc.priority || "RED").toLowerCase());
                 const statusText = STATUS_LABEL[inc.status] || inc.status;
-                const targetSec = isResponder() ? "emergency" : (isGuest() ? "emergency" : "dashboard");
                 return `
-                <button type="button" class="notif-item ${pr}-item" onclick="openNotificationItem('${targetSec}')">
+                <button type="button" class="notif-item ${pr}-item" onclick="openNotificationItem('${esc(inc.id)}')">
                     <div class="notif-item-top">
                         <strong>${esc(inc.id)} • ${esc(statusText)}</strong>
                         <span class="priority ${pr}-priority">${esc(inc.priority)}</span>
@@ -1208,6 +1222,58 @@ function renderDispatchAlerts() {
     if (emergencyList) emergencyList.innerHTML = html;
     if (medicList) medicList.innerHTML = html;
     if (officerList) officerList.innerHTML = html;
+}
+
+function renderEmergencyDispatchesSection() {
+    const listEl = document.getElementById("emergencyDispatchesList");
+    const badgeEl = document.getElementById("emergencyDispatchesBadge");
+    if (!listEl) return;
+
+    const merged = new Map();
+    [...state.active, ...state.mine, ...state.recent].forEach(inc => {
+        if (inc && inc.id && !merged.has(inc.id)) {
+            merged.set(inc.id, inc);
+        }
+    });
+
+    const allDispatches = [...merged.values()].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const activeCount = allDispatches.filter(i => i.status !== "RESOLVED").length;
+
+    if (badgeEl) {
+        badgeEl.textContent = `${activeCount} Active`;
+    }
+
+    if (allDispatches.length === 0) {
+        listEl.innerHTML = `<p class="empty-note">No emergency dispatches recorded yet.</p>`;
+        return;
+    }
+
+    listEl.innerHTML = allDispatches.slice(0, 10).map(inc => {
+        const pr = esc(String(inc.priority || "RED").toLowerCase());
+        const statusCls = STATUS_CLASS[inc.status] || "responding";
+        const statusLbl = STATUS_LABEL[inc.status] || inc.status;
+        const actionBtn = canAdvance(inc)
+            ? (() => {
+                const next = NEXT_STATUS[inc.status];
+                const label = { RESPONDING: "Accept & Respond", ON_SCENE: "Mark Arrived On-Scene", RESOLVED: "Mark Resolved" }[next];
+                const cls = { RESPONDING: "", ON_SCENE: "btn-yellow", RESOLVED: "btn-green" }[next];
+                return `<div class="dispatch-actions" style="margin-top:8px;"><button class="primary-button btn-sm ${cls}" onclick="respondToDispatch('${esc(inc.id)}', '${next}', this)">${label}</button></div>`;
+            })()
+            : "";
+
+        return `
+        <div id="dispatch-item-${esc(inc.id)}" class="card dispatch-card ${pr}-card" style="margin-bottom:10px;">
+            <div class="dispatch-card-top">
+                <strong>${esc(inc.id)}${inc.typeName ? " • " + esc(inc.typeName) : ""}</strong>
+                <span class="priority ${pr}-priority">${esc(inc.priority)}</span>
+            </div>
+            <p class="dispatch-loc">📍 ${esc(inc.building)} – ${esc(inc.room)}</p>
+            <p class="dispatch-meta">Patients: ${esc(inc.patients)} • Reported ${esc(timeAgo(inc.createdAt))}${inc.reporterName ? " by " + esc(inc.reporterName) : ""}</p>
+            ${inc.details ? `<p class="dispatch-meta">${esc(inc.details)}</p>` : ""}
+            <p class="dispatch-status-line">Status: <span class="status ${statusCls}">${esc(statusLbl)}</span>${inc.responderName ? ` (Responder: ${esc(inc.responderName)})` : ""}</p>
+            ${actionBtn}
+        </div>`;
+    }).join("");
 }
 
 async function respondToDispatch(id, newStatus, btn) {
@@ -1884,6 +1950,7 @@ async function pollTick() {
             state.announcements = [];
 
             renderDispatchAlerts();
+            renderEmergencyDispatchesSection();
             renderMyRequests();
             renderCPRRoster();
             updateNotificationBell();
@@ -1912,6 +1979,7 @@ async function pollTick() {
         firstPollDone = true;
 
         renderDispatchAlerts();
+        renderEmergencyDispatchesSection();
         renderMyRequests();
         renderDashboardStats();
         renderCPRRoster();

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lifeline | Emergency Alert &amp; Dispatch Hub</title>
-    <link rel="stylesheet" href="css/style.css?v=9">
+    <link rel="stylesheet" href="css/style.css?v=10">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -97,8 +97,8 @@
                                 <p class="empty-note">No active alerts right now.</p>
                             </div>
                             <div class="notif-dropdown-footer">
-                                <button type="button" class="secondary-button btn-xs full-btn" onclick="closeNotifDropdown(); showSection('emergency');">
-                                    Open Dispatch Hub
+                                <button type="button" class="secondary-button btn-xs full-btn" onclick="openNotificationItem();">
+                                    View All Emergency Dispatches
                                 </button>
                             </div>
                         </div>
@@ -292,83 +292,99 @@
             <section id="emergency" class="content-section active-section">
                 <div class="emergency-grid">
 
-                    <!-- LEFT COLUMN: DISPATCH FORM -->
-                    <div class="card">
-                        <div class="dispatch-warning-box">
-                            <strong>⚠️ Emergency Dispatch</strong>
-                            <p>Submit an alert when medical assistance is required on campus.</p>
+                    <!-- LEFT COLUMN: DISPATCH FORM + EMERGENCY DISPATCHES FEED -->
+                    <div style="display:flex; flex-direction:column; gap:20px;">
+                        <div class="card">
+                            <div class="dispatch-warning-box">
+                                <strong>⚠️ Emergency Dispatch</strong>
+                                <p>Submit an alert when medical assistance is required on campus.</p>
+                            </div>
+
+                            <form id="emergencyForm" class="dispatch-form">
+                                <div class="form-group">
+                                    <label>Type of Emergency</label>
+                                    <div class="priority-grid">
+                                        <label class="priority-option red-option">
+                                            <input type="radio" name="priority" value="RED" onchange="updateConditionDropdownByPriority()" required>
+                                            <div>
+                                                <strong>RED - Immediate</strong>
+                                                <span>Severe bleeding, respiratory distress, shock</span>
+                                            </div>
+                                        </label>
+
+                                        <label class="priority-option yellow-option">
+                                            <input type="radio" name="priority" value="YELLOW" onchange="updateConditionDropdownByPriority()">
+                                            <div>
+                                                <strong>YELLOW - Delayed</strong>
+                                                <span>Bone fractures, deep wounds, moderate burns</span>
+                                            </div>
+                                        </label>
+
+                                        <label class="priority-option green-option">
+                                            <input type="radio" name="priority" value="GREEN" onchange="updateConditionDropdownByPriority()">
+                                            <div>
+                                                <strong>GREEN - Minor</strong>
+                                                <span>Minor cuts, scrapes, sprains, bruises</span>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="form-group" id="incidentTypeGroup" style="display:none;">
+                                    <label for="incidentType" id="incidentTypeLabel">Condition / Complaint (optional)</label>
+                                    <select id="incidentType">
+                                        <option value="">Not sure / Other</option>
+                                    </select>
+                                </div>
+
+                                <div class="grid-2">
+                                    <div class="form-group">
+                                        <label for="building">Building / Zone</label>
+                                        <select id="building" onchange="updateRoomDropdown()" required>
+                                            <option value="">Select Building</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="room">Room / Specific Location</label>
+                                        <select id="room" required>
+                                            <option value="">Select Room / Area</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-group" id="guestReporterField">
+                                    <label for="guestReporterName">Your Name or Student ID (optional)</label>
+                                    <input type="text" id="guestReporterName" maxlength="60" placeholder="e.g. Juan Dela Cruz or 23-1234-567 (leave blank if urgent)">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="patients">Number of Patients</label>
+                                    <input type="number" id="patients" value="1" min="1" max="99" required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="others">Others / Additional Information</label>
+                                    <textarea id="others" rows="3" maxlength="300" placeholder="Describe patient condition or specific landmarks..."></textarea>
+                                </div>
+
+                                <button type="submit" class="dispatch-button full-btn">🚨 SEND EMERGENCY ALERT</button>
+                            </form>
                         </div>
 
-                        <form id="emergencyForm" class="dispatch-form">
-                            <div class="form-group">
-                                <label>Type of Emergency</label>
-                                <div class="priority-grid">
-                                    <label class="priority-option red-option">
-                                        <input type="radio" name="priority" value="RED" onchange="updateConditionDropdownByPriority()" required>
-                                        <div>
-                                            <strong>RED - Immediate</strong>
-                                            <span>Severe bleeding, respiratory distress, shock</span>
-                                        </div>
-                                    </label>
-
-                                    <label class="priority-option yellow-option">
-                                        <input type="radio" name="priority" value="YELLOW" onchange="updateConditionDropdownByPriority()">
-                                        <div>
-                                            <strong>YELLOW - Delayed</strong>
-                                            <span>Bone fractures, deep wounds, moderate burns</span>
-                                        </div>
-                                    </label>
-
-                                    <label class="priority-option green-option">
-                                        <input type="radio" name="priority" value="GREEN" onchange="updateConditionDropdownByPriority()">
-                                        <div>
-                                            <strong>GREEN - Minor</strong>
-                                            <span>Minor cuts, scrapes, sprains, bruises</span>
-                                        </div>
-                                    </label>
+                        <!-- EMERGENCY DISPATCHES SECTION (NOTIFICATION BELL TARGET) -->
+                        <div id="emergencyDispatchesCard" class="card">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+                                <div>
+                                    <h3 style="margin:0;">🚨 Emergency Dispatches</h3>
+                                    <p style="font-size:12px; color:var(--muted); margin:2px 0 0;">Live campus emergency alerts &amp; dispatch activity</p>
                                 </div>
+                                <span id="emergencyDispatchesBadge" class="priority red-priority">0 Active</span>
                             </div>
-
-                            <div class="form-group" id="incidentTypeGroup" style="display:none;">
-                                <label for="incidentType" id="incidentTypeLabel">Condition / Complaint (optional)</label>
-                                <select id="incidentType">
-                                    <option value="">Not sure / Other</option>
-                                </select>
+                            <div id="emergencyDispatchesList">
+                                <p class="empty-note">No emergency dispatches recorded yet.</p>
                             </div>
-
-                            <div class="grid-2">
-                                <div class="form-group">
-                                    <label for="building">Building / Zone</label>
-                                    <select id="building" onchange="updateRoomDropdown()" required>
-                                        <option value="">Select Building</option>
-                                    </select>
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="room">Room / Specific Location</label>
-                                    <select id="room" required>
-                                        <option value="">Select Room / Area</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="form-group" id="guestReporterField">
-                                <label for="guestReporterName">Your Name or Student ID (optional)</label>
-                                <input type="text" id="guestReporterName" maxlength="60" placeholder="e.g. Juan Dela Cruz or 23-1234-567 (leave blank if urgent)">
-                            </div>
-
-                            <div class="form-group">
-                                <label for="patients">Number of Patients</label>
-                                <input type="number" id="patients" value="1" min="1" max="99" required>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="others">Others / Additional Information</label>
-                                <textarea id="others" rows="3" maxlength="300" placeholder="Describe patient condition or specific landmarks..."></textarea>
-                            </div>
-
-                            <button type="submit" class="dispatch-button full-btn">🚨 SEND EMERGENCY ALERT</button>
-                        </form>
+                        </div>
                     </div>
 
                     <!-- RIGHT COLUMN: MEDICS ON DUTY & LIVE QUEUES -->
@@ -597,6 +613,22 @@
         </div>
     </div>
 
+    <!-- CUSTOM LIFELINE CONFIRMATION POPUP (REPLACES BROWSER confirm()) -->
+    <div id="lifelineConfirmModal" class="modal">
+        <div class="modal-content" style="max-width:440px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
+                <h3 id="confirmModalTitle" style="margin:0;">Confirm Action</h3>
+                <span id="confirmModalBadge" class="priority red-priority" style="display:none;">RED</span>
+            </div>
+            <p id="confirmModalMessage" style="margin:0 0 8px; font-weight:600; color:#0f172a; line-height:1.45;"></p>
+            <p id="confirmModalSubtext" style="margin:0 0 18px; font-size:13px; color:#64748b; line-height:1.45;"></p>
+            <div style="display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
+                <button type="button" id="confirmModalCancelBtn" class="secondary-button">Cancel</button>
+                <button type="button" id="confirmModalOkBtn" class="dispatch-button">Confirm</button>
+            </div>
+        </div>
+    </div>
+
     <!-- NDRRMC-STYLE INCOMING EMERGENCY BROADCAST MODAL -->
     <div id="ndrrmcModal" class="modal ndrrmc-overlay">
         <div class="modal-content ndrrmc-card">
@@ -676,21 +708,6 @@
             <p id="codeModalText" style="margin:10px 0;"></p>
             <div id="codeModalCode" style="font-size:20px; font-weight:700; letter-spacing:2px; padding:10px; background:#f1f5f9; border-radius:8px; text-align:center; margin-bottom:14px;"></div>
             <button type="button" class="primary-button full-btn" onclick="closeCodeModal()">Done</button>
-        </div>
-    </div>
-<!-- CUSTOM LIFELINE CONFIRMATION POPUP (REPLACES BROWSER confirm()) -->
-    <div id="lifelineConfirmModal" class="modal">
-        <div class="modal-content" style="max-width:440px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
-                <h3 id="confirmModalTitle" style="margin:0;">Confirm Action</h3>
-                <span id="confirmModalBadge" class="priority red-priority" style="display:none;">RED</span>
-            </div>
-            <p id="confirmModalMessage" style="margin:0 0 8px; font-weight:600; color:#0f172a; line-height:1.45;"></p>
-            <p id="confirmModalSubtext" style="margin:0 0 18px; font-size:13px; color:#64748b; line-height:1.45;"></p>
-            <div style="display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
-                <button type="button" id="confirmModalCancelBtn" class="secondary-button">Cancel</button>
-                <button type="button" id="confirmModalOkBtn" class="dispatch-button">Confirm</button>
-            </div>
         </div>
     </div>
 
